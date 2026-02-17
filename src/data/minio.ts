@@ -32,8 +32,22 @@ export const ensureBuckets = async () => {
   }
 }
 
-export const uploadFile = async (bucket: string, objectName: string, buffer: Buffer, contentType: string) => {
-  await minioClient.putObject(bucket, objectName, buffer, buffer.length, { 'Content-Type': contentType })
+export const uploadFile = async (
+  bucket: string,
+  objectName: string,
+  buffer: Buffer,
+  contentType: string,
+  metadata: Record<string, string> = {}
+) => {
+  await minioClient.putObject(bucket, objectName, buffer, buffer.length, {
+    'Content-Type': contentType,
+    ...metadata,
+  })
+}
+
+export const getObjectMetadata = async (bucket: string, objectName: string) => {
+  const stat = await minioClient.statObject(bucket, objectName)
+  return stat.metaData
 }
 
 export const getPresignedUrl = async (bucket: string, objectName: string, expiry = 3600) =>

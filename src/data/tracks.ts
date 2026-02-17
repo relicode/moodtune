@@ -1,28 +1,26 @@
 import 'server-only'
 
 import type { Track } from '$/types'
-import { AUDIO_BUCKET, getPresignedUrl as getMinioPresignedUrl, removeFile } from './minio'
+import { AUDIO_BUCKET, getPresignedUrl as getMinioPresignedUrl, getObjectMetadata, removeFile } from './minio'
 import redis from './redis'
 
-export const createTrack = async (
-  title: string,
-  artist: string,
-  fileName: string,
-  duration: number
-): Promise<Track> => {
+export const createTrack = async (title: string, artist: string, fileName: string): Promise<Track> => {
   const id = crypto.randomUUID()
   const track: Track = {
     id,
     title,
     artist,
     fileName,
-    duration,
+    duration: 0,
     createdAt: new Date().toISOString(),
   }
 
   await redis.hset(`track:${id}`, {
-    ...track,
-    duration: String(duration),
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    fileName: track.fileName,
+    createdAt: track.createdAt,
   })
 
   return track
@@ -31,9 +29,18 @@ export const createTrack = async (
 export const getTrack = async (id: string): Promise<Track | null> => {
   const data = await redis.hgetall(`track:${id}`)
   if (!data.id) return null
+
+  let duration = 0
+  try {
+    const metadata = await getObjectMetadata(AUDIO_BUCKET, data.fileName)
+    duration = parseFloat(metadata.duration) || 0
+  } catch {
+    // MinIO metadata unavailable — fall back to 0
+  }
+
   return {
     ...data,
-    duration: parseFloat(data.duration),
+    duration,
   } as unknown as Track
 }
 

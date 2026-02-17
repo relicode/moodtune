@@ -19,10 +19,7 @@ const printBranch = async (branchId: string, indent: number) => {
     for (const trackId of trackIds) {
       const track = await redis.hgetall(`track:${trackId}`)
       if (!track.id) continue
-      const dur = parseFloat(track.duration || '0')
-      const m = Math.floor(dur / 60)
-      const s = Math.floor(dur % 60)
-      console.log(`${prefix}  ♪ ${track.title} ${chalk.dim(`— ${track.artist || 'Unknown'}`)} ${chalk.dim(`${m}:${s.toString().padStart(2, '0')}`)} ${shortId(track.id)}`)
+      console.log(`${prefix}  ♪ ${track.title} ${chalk.dim(`— ${track.artist || 'Unknown'}`)} ${shortId(track.id)}`)
     }
   } else {
     const childIds = await redis.lrange(`branch:${branchId}:children`, 0, -1)
