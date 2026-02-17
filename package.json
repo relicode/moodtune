@@ -15,6 +15,7 @@
     "lint:prettier": "prettier --check .",
     "lint:typescript": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
+    "show-redis": "tsx scripts/show-redis.ts",
     "start": "next start"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
+    "chalk": "^5.6.2",
     "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
