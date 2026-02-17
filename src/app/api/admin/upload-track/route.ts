@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 
 import { AUDIO_BUCKET, removeFile, uploadFile } from '$/data/minio'
 import { addTrackToBranch, createTrack } from '$/data/tracks'
+import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
+import { parseFilename } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
@@ -10,17 +12,6 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 const sanitizeExtension = (name: string): string => {
   const ext = name.split('.').pop() ?? ''
   return ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'bin'
-}
-
-const parseFilename = (name: string): { artist: string | null; title: string | null } => {
-  const stem = name.replace(/\.[^.]+$/, '')
-  const parts = stem.split('___')
-
-  // artist___title or 123___artist___title
-  if (parts.length === 2) return { artist: parts[0], title: parts[1] }
-  if (parts.length >= 3) return { artist: parts[1], title: parts[2] }
-
-  return { artist: null, title: null }
 }
 
 export const POST = async (request: Request) => {
@@ -47,7 +38,7 @@ export const POST = async (request: Request) => {
   const fileName = `${crypto.randomUUID()}.${ext}`
   const buffer = Buffer.from(await audioFile.arrayBuffer())
 
-  let meta
+  let meta: AudioMetadata
   try {
     meta = await extractMetadata(buffer)
   } catch {
@@ -61,7 +52,7 @@ export const POST = async (request: Request) => {
   await uploadFile(AUDIO_BUCKET, fileName, buffer, audioFile.type, { duration: String(meta.duration) })
 
   try {
-    const track = await createTrack(title, artist, fileName)
+    const track = await createTrack(title, artist, fileName, meta.duration)
     await addTrackToBranch(branchId, track.id)
   } catch {
     await removeFile(AUDIO_BUCKET, fileName).catch(() => {})

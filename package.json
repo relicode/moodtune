@@ -16,7 +16,8 @@
     "lint:typescript": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "show-redis": "tsx scripts/show-redis.ts",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -52,6 +53,7 @@
     "eslint-config-next": "16.1.6",
     "prettier": "^3.8.1",
     "tsx": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }
