@@ -1,5 +1,6 @@
 import AppBar from '@mui/material/AppBar'
-import Box from '@mui/material/Box'
+import Container from '@mui/material/Container'
+import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 
@@ -10,7 +11,7 @@ const AdminLayout = async ({ children }: { children: React.ReactNode }) => {
   const session = await getSessionFromCookie()
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Stack sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
@@ -22,8 +23,10 @@ const AdminLayout = async ({ children }: { children: React.ReactNode }) => {
           <AdminLogoutButton />
         </Toolbar>
       </AppBar>
-      <Box sx={{ flex: 1, p: 3 }}>{children}</Box>
-    </Box>
+      <Container maxWidth="lg" sx={{ flex: 1, py: 3 }}>
+        {children}
+      </Container>
+    </Stack>
   )
 }
 

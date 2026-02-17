@@ -4,13 +4,14 @@ import { revalidatePath } from 'next/cache'
 
 import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
 import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
-import { deleteTrack, removeTrackFromBranch } from '$/data/tracks'
+import { deleteTrack, removeTrackFromBranch, updateTrack } from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
   addRootBranch,
   addUserToVenue,
   createVenue,
   deleteVenue,
+  updateVenue,
   removeRootBranch,
   removeUserFromVenue,
 } from '$/data/venues'
@@ -32,11 +33,25 @@ export const createVenueAction = async (_prev: ActionResult, formData: FormData)
   if ('error' in auth) return auth.error
 
   const name = formData.get('name') as string
-  const description = (formData.get('description') as string) || ''
 
   if (!name) return { success: false, error: 'Name is required' }
 
-  await createVenue(name, description)
+  await createVenue(name, '')
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const updateVenueAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  const venueId = formData.get('venueId') as string
+  const name = formData.get('name') as string
+
+  if (!venueId) return { success: false, error: 'Venue ID is required' }
+  if (!name) return { success: false, error: 'Name is required' }
+
+  await updateVenue(venueId, { name })
   revalidatePath('/admin')
   return { success: true }
 }
@@ -154,6 +169,22 @@ export const updateBranchAction = async (_prev: ActionResult, formData: FormData
   }
 
   await updateBranch(branchId, updates)
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const updateTrackAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  const trackId = formData.get('trackId') as string
+  const title = formData.get('title') as string
+  const artist = formData.get('artist') as string
+
+  if (!trackId) return { success: false, error: 'Track ID is required' }
+  if (!title) return { success: false, error: 'Title is required' }
+
+  await updateTrack(trackId, { title, artist: artist || '' })
   revalidatePath('/admin')
   return { success: true }
 }

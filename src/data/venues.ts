@@ -1,7 +1,7 @@
 import 'server-only'
 
 import type { Venue } from '$/types'
-import { hashCreate, hashGet, listAll, listPush, listRemove, setAdd, setAll, setGetAll, setHas, setRemove } from './dal'
+import { hashCreate, hashGet, hashSet, listAll, listPush, listRemove, setAdd, setAll, setGetAll, setHas, setRemove } from './dal'
 import redis from './redis'
 
 const schema = {} as const
@@ -15,6 +15,10 @@ export const createVenue = async (name: string, description: string): Promise<Ve
 export const getVenue = async (id: string): Promise<Venue | null> => hashGet<Venue>(`venue:${id}`, schema)
 
 export const getAllVenues = async (): Promise<Venue[]> => setGetAll('venues', getVenue)
+
+export const updateVenue = async (id: string, fields: Partial<{ name: string }>) => {
+  await hashSet(`venue:${id}`, fields, schema)
+}
 
 export const deleteVenue = async (id: string) => {
   await redis.del(`venue:${id}`)

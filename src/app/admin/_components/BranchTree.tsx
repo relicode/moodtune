@@ -1,7 +1,10 @@
 'use client'
 
+import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import FolderIcon from '@mui/icons-material/Folder'
+import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
 import Box from '@mui/material/Box'
 import Collapse from '@mui/material/Collapse'
@@ -10,6 +13,8 @@ import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
+import Stack from '@mui/material/Stack'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useState } from 'react'
@@ -17,6 +22,7 @@ import { useEffect, useState } from 'react'
 import { deleteBranchAction } from '$/actions/admin'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
+import BranchEditForm from './BranchEditForm'
 import TrackList from './TrackList'
 import TrackUploader from './TrackUploader'
 
@@ -28,11 +34,13 @@ type BranchTreeProps = {
 type BranchItemProps = {
   venueId: string
   branch: Branch
-  onDeleted: () => void
+  onChanged: () => void
 }
 
-const BranchItem = ({ venueId, branch, onDeleted }: BranchItemProps) => {
+const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const [open, setOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const [trackRefreshKey, setTrackRefreshKey] = useState(0)
   const confirm = useConfirm()
 
@@ -40,24 +48,48 @@ const BranchItem = ({ venueId, branch, onDeleted }: BranchItemProps) => {
     e.stopPropagation()
     try {
       await confirm({ description: `Delete branch "${branch.name}"?` })
-      await deleteBranchAction(venueId, branch.id, branch.parentId)
-      onDeleted()
     } catch {
-      // cancelled
+      return
     }
+    await deleteBranchAction(venueId, branch.id, branch.parentId)
+    onChanged()
   }
 
   return (
     <>
-      <ListItemButton onClick={() => setOpen(!open)}>
-        <ListItemIcon>{branch.type === 'folder' ? <FolderIcon /> : <QueueMusicIcon />}</ListItemIcon>
-        <ListItemText primary={branch.name} secondary={branch.type} />
-        <IconButton size="small" color="error" onClick={handleDelete}>
-          <DeleteIcon fontSize="small" />
-        </IconButton>
-      </ListItemButton>
+      <Stack direction="row" alignItems="center">
+        <ListItemButton onClick={() => setOpen(!open)} sx={{ flexGrow: 1 }}>
+          <ListItemIcon>
+            {branch.type === 'folder' ? (open ? <FolderOpenIcon /> : <FolderIcon />) : <QueueMusicIcon />}
+          </ListItemIcon>
+          <ListItemText primary={branch.name} />
+        </ListItemButton>
+        {branch.type === 'folder' && (
+          <Tooltip title="Add sub-branch">
+            <IconButton size="small" color="success" onClick={() => setAddOpen(true)}>
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        <Tooltip title="Edit branch">
+          <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Delete branch">
+          <IconButton size="small" color="error" onClick={handleDelete}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+
+      <BranchEditForm branch={branch} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
+      {branch.type === 'folder' && (
+        <BranchCreateForm venueId={venueId} parentId={branch.id} open={addOpen} onClose={() => setAddOpen(false)} onCreated={onChanged} />
+      )}
+
       <Collapse in={open} unmountOnExit>
-        <Box sx={{ pl: 4, pt: 1 }}>
+        <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
           {branch.type === 'folder' ? (
             <BranchTree venueId={venueId} parentId={branch.id} />
           ) : (
@@ -98,8 +130,6 @@ const BranchTree = ({ venueId, parentId }: BranchTreeProps) => {
 
   return (
     <>
-      <BranchCreateForm venueId={venueId} parentId={parentId} onCreated={loadBranches} />
-
       {loading ? (
         <Typography variant="body2" color="text.secondary">
           Loading...
@@ -111,7 +141,7 @@ const BranchTree = ({ venueId, parentId }: BranchTreeProps) => {
       ) : (
         <List dense sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {branches.map((branch) => (
-            <BranchItem key={branch.id} venueId={venueId} branch={branch} onDeleted={loadBranches} />
+            <BranchItem key={branch.id} venueId={venueId} branch={branch} onChanged={loadBranches} />
           ))}
         </List>
       )}

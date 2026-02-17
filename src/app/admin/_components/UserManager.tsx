@@ -7,6 +7,8 @@ import IconButton from '@mui/material/IconButton'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
+import Snackbar from '@mui/material/Snackbar'
+import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
@@ -25,6 +27,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const confirm = useConfirm()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [snackError, setSnackError] = useState<string | null>(null)
 
   const loadUsers = async () => {
     setLoading(true)
@@ -44,13 +47,15 @@ const UserManager = ({ venueId }: UserManagerProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadUsers is stable via React Compiler; including it would cause an infinite loop
   }, [venueId])
 
-  const [state, formAction, pending] = useActionState(
+  const [, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venueId)
       const result = await createVenueUserAction(prev, formData)
       if (result.success) {
         formRef.current?.reset()
         loadUsers()
+      } else if (result.error) {
+        setSnackError(result.error)
       }
       return result
     },
@@ -60,11 +65,11 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const handleDeleteUser = async (userId: string, username: string) => {
     try {
       await confirm({ description: `Remove user "${username}"?` })
-      await deleteVenueUserAction(venueId, userId)
-      loadUsers()
     } catch {
-      // cancelled
+      return
     }
+    await deleteVenueUserAction(venueId, userId)
+    loadUsers()
   }
 
   return (
@@ -77,11 +82,16 @@ const UserManager = ({ venueId }: UserManagerProps) => {
         </Button>
       </Stack>
 
-      {state.error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {state.error}
+      <Snackbar
+        open={!!snackError}
+        autoHideDuration={5000}
+        onClose={() => setSnackError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" variant="filled" onClose={() => setSnackError(null)}>
+          {snackError}
         </Alert>
-      )}
+      </Snackbar>
 
       {loading ? (
         <Typography variant="body2" color="text.secondary">
@@ -97,14 +107,16 @@ const UserManager = ({ venueId }: UserManagerProps) => {
             <ListItem
               key={user.id}
               secondaryAction={
-                <IconButton
-                  edge="end"
-                  size="small"
-                  color="error"
-                  onClick={() => handleDeleteUser(user.id, user.username)}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Delete user">
+                  <IconButton
+                    edge="end"
+                    size="small"
+                    color="error"
+                    onClick={() => handleDeleteUser(user.id, user.username)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               }
             >
               <ListItemText primary={user.username} />

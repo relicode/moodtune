@@ -7,7 +7,21 @@ const theme = createTheme({
   typography: {
     fontFamily: 'var(--font-inter), Roboto, Arial, sans-serif',
   },
-  colorSchemes: { light: true, dark: true },
+  colorSchemes: {
+    light: {
+      palette: {
+        primary: { main: '#00796B' },
+        secondary: { main: '#FFB300' },
+        background: { default: '#F5F5F5' },
+      },
+    },
+    dark: {
+      palette: {
+        primary: { main: '#4DB6AC' },
+        secondary: { main: '#FFD54F' },
+      },
+    },
+  },
   components: {
     MuiStack: {
       defaultProps: {

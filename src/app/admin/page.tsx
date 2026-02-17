@@ -1,3 +1,4 @@
+import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 
 import { getAllVenues } from '$/data/venues'
@@ -9,10 +10,12 @@ const AdminPage = async () => {
 
   return (
     <>
-      <Typography variant="h4" gutterBottom>
-        Venues
-      </Typography>
-      <VenueCreateForm />
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Venues
+        </Typography>
+        <VenueCreateForm />
+      </Paper>
       <VenueList venues={venues} />
     </>
   )
