@@ -12,7 +12,7 @@ export const createSession = async (payload: SessionPayload): Promise<string> =>
   new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime('12h')
     .sign(getSecret())
 
 export const verifySession = async (token: string): Promise<SessionPayload | null> => {
@@ -30,7 +30,7 @@ export const setSessionCookie = async (token: string) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 12,
     path: '/',
   })
 }
