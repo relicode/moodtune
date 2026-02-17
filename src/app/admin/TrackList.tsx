@@ -48,7 +48,7 @@ const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
     <>
       <ListItem
         secondaryAction={
-          <Stack direction="row" spacing={0.5}>
+          <Stack direction="row" spacing={1}>
             <Tooltip title="Edit track">
               <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
                 <EditIcon fontSize="small" />
@@ -77,7 +77,6 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   const [loading, setLoading] = useState(true)
 
   const loadTracks = async () => {
-    setLoading(true)
     try {
       const res = await fetch(`/api/admin/tracks/${branchId}`)
       const data = await res.json()
@@ -90,26 +89,8 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   }
 
   useEffect(() => {
-    let cancelled = false
-
-    const load = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`/api/admin/tracks/${branchId}`)
-        if (cancelled) return
-        const data = await res.json()
-        setTracks(data.tracks || [])
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
+    loadTracks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadTracks is stable via React Compiler; including it would cause an infinite loop
   }, [branchId, refreshKey])
 
   if (loading) {

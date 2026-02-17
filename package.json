@@ -6,6 +6,7 @@
   "author": "Anssi Siren <pro@avaruus.mozmail.com>",
   "scripts": {
     "build": "next build",
+    "build:with-assets": "next build --webpack && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
     "dev": "next dev",
     "format": "concurrently --max-processes 1 --prefix-colors auto 'npm:format:eslint' 'npm:format:prettier'",
     "format:eslint": "eslint --fix",
@@ -18,7 +19,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "npm run db:delete && npm run db:seed",
     "show-redis": "tsx scripts/show-redis.ts",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts"

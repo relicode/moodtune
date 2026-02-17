@@ -1,24 +1,31 @@
 'use client'
 
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import PauseIcon from '@mui/icons-material/Pause'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
+import VolumeDownIcon from '@mui/icons-material/VolumeDown'
+import VolumeOffIcon from '@mui/icons-material/VolumeOff'
+import VolumeUpIcon from '@mui/icons-material/VolumeUp'
 import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
+import Container from '@mui/material/Container'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
 import List from '@mui/material/List'
+import Slider from '@mui/material/Slider'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
-import type { PlaylistTrack } from '$/types'
+import type { PlaylistTrack, UserRole } from '$/types'
 
 type AudioPlayerProps = {
   branchId: string
+  role: UserRole
 }
 
 const formatTime = (seconds: number) => {
@@ -27,7 +34,8 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
+const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
+  const isAdmin = role === 'admin'
   const audioRef = useRef<HTMLAudioElement>(null)
   const [tracks, setTracks] = useState<PlaylistTrack[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +43,8 @@ const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(100)
+  const [muted, setMuted] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -112,6 +122,19 @@ const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
     }
   }, [currentIndex, tracks])
 
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.volume = volume / 100
+    audio.muted = muted
+  }, [volume, muted])
+
+  const toggleMute = () => {
+    setMuted(!muted)
+  }
+
+  const VolumeIcon = muted || volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon
+
   const loadAndPlay = (index: number) => {
     if (!tracks[index]) return
     setCurrentIndex(index)
@@ -167,25 +190,61 @@ const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <Box>
+    <Container maxWidth="md" disableGutters>
       <audio ref={audioRef} src={audioSrc || undefined} />
 
-      <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
-        <Typography variant="subtitle1" fontWeight="bold">
-          {currentTrack?.title ?? `Track ${currentIndex + 1}`}
-        </Typography>
-        {currentTrack?.artist && (
-          <Typography variant="body2" color="text.secondary">
-            {currentTrack.artist}
-          </Typography>
+      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
+        {isAdmin && (
+          <>
+            <Typography variant="subtitle1" fontWeight="bold">
+              {currentTrack?.title ?? `Track ${currentIndex + 1}`}
+            </Typography>
+            {currentTrack?.artist && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
+                {currentTrack.artist}
+              </Typography>
+            )}
+          </>
         )}
 
-        <Box onClick={handleProgressClick} sx={{ cursor: 'pointer', my: 1 }}>
+        <Box onClick={handleProgressClick} sx={{ cursor: 'pointer' }}>
           <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
         </Box>
 
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="caption">{formatTime(currentTime)}</Typography>
+        <Stack direction="row" alignItems="center" spacing={3}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
+            <IconButton onClick={toggleMute} size="small">
+              <VolumeIcon fontSize="small" />
+            </IconButton>
+            <Slider
+              value={muted ? 0 : volume}
+              onChange={(_, value) => {
+                setVolume(value as number)
+                if (muted) setMuted(false)
+              }}
+              min={0}
+              max={100}
+              step={1}
+              marks={[
+                { value: 0, label: '0%' },
+                { value: 25, label: '25%' },
+                { value: 50, label: '50%' },
+                { value: 75, label: '75%' },
+                { value: 100, label: '100%' },
+              ]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(v) => `${v}%`}
+              size="small"
+              aria-label="Volume"
+              sx={(theme) => ({
+                mb: 0,
+                '& .MuiSlider-markLabel': {
+                  fontSize: '0.625rem',
+                  [theme.breakpoints.down('md')]: { display: 'none' },
+                },
+              })}
+            />
+          </Stack>
           <Stack direction="row" alignItems="center">
             <IconButton onClick={skipPrevious} disabled={currentIndex === 0}>
               <SkipPreviousIcon />
@@ -197,21 +256,28 @@ const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
               <SkipNextIcon />
             </IconButton>
           </Stack>
-          <Typography variant="caption">{formatTime(duration)}</Typography>
-        </Stack>
-      </Box>
-
-      <List>
-        {tracks.map((track, index) => (
-          <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
-            <ListItemText primary={track.title ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
-            <Typography variant="caption" color="text.secondary">
-              {formatTime(track.duration)}
+          <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ flex: 1 }}>
+            <Typography variant="caption">
+              {formatTime(currentTime)} / {formatTime(duration)}
             </Typography>
-          </ListItemButton>
-        ))}
-      </List>
-    </Box>
+            <AccessTimeIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+          </Stack>
+        </Stack>
+      </Stack>
+
+      {isAdmin && (
+        <List>
+          {tracks.map((track, index) => (
+            <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
+              <ListItemText primary={track.title ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
+              <Typography variant="caption" color="text.secondary">
+                {formatTime(track.duration)}
+              </Typography>
+            </ListItemButton>
+          ))}
+        </List>
+      )}
+    </Container>
   )
 }
 

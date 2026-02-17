@@ -11,7 +11,14 @@ const ThemeRegistry = ({ children }: { children: React.ReactNode }) => (
   <AppRouterCacheProvider>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ConfirmProvider>{children}</ConfirmProvider>
+      <ConfirmProvider
+        defaultOptions={{
+          cancellationButtonProps: { color: 'info' },
+          confirmationButtonProps: { color: 'error' },
+        }}
+      >
+        {children}
+      </ConfirmProvider>
     </ThemeProvider>
   </AppRouterCacheProvider>
 )

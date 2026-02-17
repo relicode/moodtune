@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import Accordion from '@mui/material/Accordion'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
@@ -32,7 +33,9 @@ const VenueCard = ({ venue }: VenueCardProps) => {
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [branchRefreshKey, setBranchRefreshKey] = useState(0)
+  const [rootChildType, setRootChildType] = useState<'folder' | 'playlist' | undefined>(undefined)
   const confirm = useConfirm()
+  const canAddRootBranch = rootChildType !== 'playlist'
 
   const handleDelete = async () => {
     const { confirmed } = await confirm({ description: `Delete venue "${venue.name}"? This cannot be undone.` })
@@ -58,8 +61,8 @@ const VenueCard = ({ venue }: VenueCardProps) => {
             <Tab label="Branches" />
             <Tab label="Users" />
           </Tabs>
-          <Stack direction="row">
-            {tab === 0 && (
+          <Stack direction="row" spacing={1}>
+            {tab === 0 && canAddRootBranch && (
               <Tooltip title="Add branch">
                 <IconButton size="small" color="success" onClick={() => setAddOpen(true)}>
                   <AddIcon fontSize="small" />
@@ -71,6 +74,11 @@ const VenueCard = ({ venue }: VenueCardProps) => {
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            <Tooltip title="Open venue">
+              <IconButton size="small" color="primary" href={`/venue/${venue.id}`} target="_blank">
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Delete venue">
               <IconButton size="small" color="error" onClick={handleDelete}>
                 <DeleteIcon fontSize="small" />
@@ -80,12 +88,15 @@ const VenueCard = ({ venue }: VenueCardProps) => {
         </Stack>
 
         <Stack>
-          {tab === 0 && <BranchTree venueId={venue.id} key={branchRefreshKey} />}
+          {tab === 0 && (
+            <BranchTree venueId={venue.id} key={branchRefreshKey} onChildrenLoaded={setRootChildType} />
+          )}
           {tab === 1 && <UserManager venueId={venue.id} />}
         </Stack>
       </AccordionDetails>
       <BranchCreateForm
         venueId={venue.id}
+        allowedType={rootChildType === 'folder' ? 'folder' : undefined}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreated={() => setBranchRefreshKey((k) => k + 1)}
