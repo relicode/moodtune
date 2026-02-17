@@ -15,6 +15,7 @@ import {
   removeUserFromVenue,
   updateVenue,
 } from '$/data/venues'
+import { sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
 import type { ActionResult, SessionPayload } from '$/types'
 
@@ -111,7 +112,7 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
 
   let imagePath: string | null = null
   if (imageFile && imageFile.size > 0) {
-    const ext = imageFile.name.split('.').pop()
+    const ext = sanitizeExtension(imageFile.name)
     const objectName = `image/${crypto.randomUUID()}.${ext}`
     const buffer = Buffer.from(await imageFile.arrayBuffer())
     await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
@@ -161,7 +162,7 @@ export const updateBranchAction = async (_prev: ActionResult, formData: FormData
   if (name) updates.name = name
 
   if (imageFile && imageFile.size > 0) {
-    const ext = imageFile.name.split('.').pop()
+    const ext = sanitizeExtension(imageFile.name)
     const objectName = `image/${crypto.randomUUID()}.${ext}`
     const buffer = Buffer.from(await imageFile.arrayBuffer())
     await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)

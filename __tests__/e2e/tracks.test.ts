@@ -117,6 +117,68 @@ describe('tracks — HTTP routes', () => {
     expect(tracks.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('POST /api/admin/upload-track compresses WAV to M4A', async () => {
+    const { branch } = await setupVenueWithBranch()
+
+    const audioPath = resolve(__dirname, '../test-data/test-audio.wav')
+    const audioBuffer = await readFile(audioPath)
+
+    const formData = new FormData()
+    formData.set('branchId', branch.id)
+    formData.set('audio', new File([audioBuffer], 'test-audio.wav', { type: 'audio/wav' }))
+
+    const res = await fetchApi('/api/admin/upload-track', {
+      method: 'POST',
+      body: formData,
+    })
+
+    expect(res.status).toBe(200)
+
+    const tracks = await getPlaylistTracks(branch.id)
+    expect(tracks.length).toBe(1)
+    expect(tracks[0].fileName).toMatch(/\.m4a$/)
+  })
+
+  it('POST /api/admin/upload-track skips compression for small files', async () => {
+    const { branch } = await setupVenueWithBranch()
+
+    const audioPath = resolve(__dirname, '../test-data/test-audio.opus')
+    const audioBuffer = await readFile(audioPath)
+
+    const formData = new FormData()
+    formData.set('branchId', branch.id)
+    formData.set('audio', new File([audioBuffer], 'test-audio.opus', { type: 'audio/opus' }))
+
+    const res = await fetchApi('/api/admin/upload-track', {
+      method: 'POST',
+      body: formData,
+    })
+
+    expect(res.status).toBe(200)
+
+    const tracks = await getPlaylistTracks(branch.id)
+    expect(tracks.length).toBe(1)
+    expect(tracks[0].fileName).toMatch(/\.opus$/)
+  })
+
+  it('POST /api/admin/upload-track with corrupt file returns 422', async () => {
+    const { branch } = await setupVenueWithBranch()
+    const garbage = Buffer.from(crypto.getRandomValues(new Uint8Array(1024)))
+
+    const formData = new FormData()
+    formData.set('branchId', branch.id)
+    formData.set('audio', new File([garbage], 'corrupt.mp3', { type: 'audio/mpeg' }))
+
+    const res = await fetchApi('/api/admin/upload-track', {
+      method: 'POST',
+      body: formData,
+    })
+
+    expect(res.status).toBe(422)
+    const data = await res.json()
+    expect(data.error).toMatch(/metadata/)
+  })
+
   it('POST /api/admin/upload-track missing branchId returns 400', async () => {
     const audioPath = resolve(__dirname, '../test-data/test-audio.opus')
     const audioBuffer = await readFile(audioPath)

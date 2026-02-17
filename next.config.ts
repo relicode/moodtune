@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactCompiler: true,
   poweredByHeader: false,
-  serverExternalPackages: ['ioredis', 'ffprobe-static'],
+  serverExternalPackages: ['ioredis', 'ffmpeg-static', 'ffprobe-static'],
   turbopack: {
     root: process.cwd(),
   },

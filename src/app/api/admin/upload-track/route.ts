@@ -1,18 +1,17 @@
+import { unlink, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { NextResponse } from 'next/server'
 
 import { AUDIO_BUCKET, removeFile, uploadFile } from '$/data/minio'
 import { addTrackToBranch, createTrack } from '$/data/tracks'
+import { compressToM4a, TARGET_BYTES_PER_SEC } from '$/lib/ffmpeg'
 import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
-import { parseFilename } from '$/lib/filename'
+import { parseFilename, sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
-
-const sanitizeExtension = (name: string): string => {
-  const ext = name.split('.').pop() ?? ''
-  return ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'bin'
-}
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
@@ -35,29 +34,47 @@ export const POST = async (request: Request) => {
   }
 
   const ext = sanitizeExtension(audioFile.name)
-  const fileName = `audio/${crypto.randomUUID()}.${ext}`
+  const originalFileName = `audio/${crypto.randomUUID()}.${ext}`
   const buffer = Buffer.from(await audioFile.arrayBuffer())
 
-  let meta: AudioMetadata
-  try {
-    meta = await extractMetadata(buffer)
-  } catch {
-    return NextResponse.json({ error: 'Could not read audio metadata — unsupported or corrupt file' }, { status: 422 })
-  }
-
-  const { artist: fileArtist, title: fileTitle } = parseFilename(audioFile.name)
-  const title = formTitle || meta.title || fileTitle || 'Unknown Track'
-  const artist = formArtist || meta.artist || fileArtist || 'Unknown Artist'
-
-  await uploadFile(AUDIO_BUCKET, fileName, buffer, audioFile.type)
+  const tmpFile = join(tmpdir(), `moodtune-${crypto.randomUUID()}`)
+  await writeFile(tmpFile, buffer, { mode: 0o600 })
 
   try {
-    const track = await createTrack(title, artist, fileName, meta.duration)
-    await addTrackToBranch(branchId, track.id)
-  } catch {
-    await removeFile(AUDIO_BUCKET, fileName).catch(() => {})
-    return NextResponse.json({ error: 'Failed to save track record' }, { status: 500 })
-  }
+    let meta: AudioMetadata
+    try {
+      meta = await extractMetadata(tmpFile)
+    } catch {
+      return NextResponse.json(
+        { error: 'Could not read audio metadata — unsupported or corrupt file' },
+        { status: 422 }
+      )
+    }
 
-  return NextResponse.json({ success: true })
+    const { artist: fileArtist, title: fileTitle } = parseFilename(audioFile.name)
+    const title = formTitle || meta.title || fileTitle || 'Unknown Track'
+    const artist = formArtist || meta.artist || fileArtist || 'Unknown Artist'
+
+    // Compress to M4A when at least 20% size reduction is expected
+    const estimatedM4aSize = TARGET_BYTES_PER_SEC * meta.duration
+    const shouldCompress = buffer.length > estimatedM4aSize * 1.2
+
+    const uploadBuffer = shouldCompress ? await compressToM4a(tmpFile) : buffer
+    const uploadFileName = shouldCompress ? `audio/${crypto.randomUUID()}.m4a` : originalFileName
+    const contentType = shouldCompress ? 'audio/mp4' : audioFile.type
+
+    await uploadFile(AUDIO_BUCKET, uploadFileName, uploadBuffer, contentType)
+
+    try {
+      const track = await createTrack(title, artist, uploadFileName, meta.duration)
+      await addTrackToBranch(branchId, track.id)
+    } catch {
+      await removeFile(AUDIO_BUCKET, uploadFileName).catch(() => {})
+      return NextResponse.json({ error: 'Failed to save track record' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } finally {
+    await unlink(tmpFile).catch(() => {})
+  }
 }

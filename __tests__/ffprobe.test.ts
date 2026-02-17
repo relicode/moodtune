@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'fs/promises'
+import { readdir } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -18,15 +18,13 @@ describe('extractMetadata', () => {
 
   describe.each(audioFiles.map((f) => [f.split('/').pop()!, f]))('%s', (_name, filePath) => {
     it('extracts a duration within 1s of expected', async () => {
-      const buffer = await readFile(filePath)
-      const meta = await extractMetadata(buffer)
+      const meta = await extractMetadata(filePath)
       expect(meta.duration).toBeGreaterThan(EXPECTED_DURATION - 1)
       expect(meta.duration).toBeLessThan(EXPECTED_DURATION + 1)
     })
 
     it('returns null for missing tags', async () => {
-      const buffer = await readFile(filePath)
-      const meta = await extractMetadata(buffer)
+      const meta = await extractMetadata(filePath)
       // Test files have no embedded tags
       expect(meta.title).toBeNull()
       expect(meta.artist).toBeNull()
@@ -34,12 +32,11 @@ describe('extractMetadata', () => {
     })
   })
 
-  it('rejects an empty buffer', async () => {
-    await expect(extractMetadata(Buffer.alloc(0))).rejects.toThrow()
+  it('rejects a nonexistent file', async () => {
+    await expect(extractMetadata('/tmp/moodtune-nonexistent')).rejects.toThrow()
   })
 
-  it('rejects random bytes', async () => {
-    const garbage = Buffer.from(crypto.getRandomValues(new Uint8Array(1024)))
-    await expect(extractMetadata(garbage)).rejects.toThrow()
+  it('rejects an empty file', async () => {
+    await expect(extractMetadata('/dev/null')).rejects.toThrow()
   })
 })
