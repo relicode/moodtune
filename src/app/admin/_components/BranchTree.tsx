@@ -22,7 +22,7 @@ import TrackUploader from './TrackUploader'
 
 type BranchTreeProps = {
   venueId: string
-  parentId: string | null
+  parentId?: string
 }
 
 type BranchItemProps = {
@@ -93,7 +93,8 @@ const BranchTree = ({ venueId, parentId }: BranchTreeProps) => {
 
   useEffect(() => {
     loadBranches()
-  }, [venueId, parentId]) // loadBranches is stable via React Compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadBranches is stable via React Compiler; including it would cause an infinite loop
+  }, [venueId, parentId])
 
   return (
     <>

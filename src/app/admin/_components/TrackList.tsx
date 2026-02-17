@@ -43,7 +43,8 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
 
   useEffect(() => {
     loadTracks()
-  }, [branchId, refreshKey]) // loadTracks is stable via React Compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadTracks is stable via React Compiler; including it would cause an infinite loop
+  }, [branchId, refreshKey])
 
   const handleDelete = async (trackId: string, title: string) => {
     try {

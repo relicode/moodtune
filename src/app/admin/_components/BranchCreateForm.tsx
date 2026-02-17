@@ -14,7 +14,7 @@ import type { ActionResult } from '$/types'
 
 type BranchCreateFormProps = {
   venueId: string
-  parentId: string | null
+  parentId?: string
   onCreated: () => void
 }
 

@@ -1,8 +1,11 @@
 import 'server-only'
 
 import type { Branch, BranchType } from '$/types'
+import { hashCreate, hashGet, hashSet, listAll, listGetAll, listPush, listRemove } from './dal'
 import redis from './redis'
 import { getRootBranchIds } from './venues'
+
+const schema = { parentId: 'nullable', imagePath: 'nullable' } as const
 
 export const createBranch = async (
   venueId: string,
@@ -10,49 +13,23 @@ export const createBranch = async (
   name: string,
   type: BranchType,
   imagePath: string | null
-): Promise<Branch> => {
-  const id = crypto.randomUUID()
-  const branch: Branch = {
-    id,
-    venueId,
-    parentId: parentId ?? '',
-    name,
-    type,
-    imagePath: imagePath ?? '',
-    createdAt: new Date().toISOString(),
-  }
+): Promise<Branch> => hashCreate<Branch>('branch', { venueId, parentId, name, type, imagePath }, schema)
 
-  await redis.hset(`branch:${id}`, branch)
+export const getBranch = async (id: string): Promise<Branch | null> => hashGet<Branch>(`branch:${id}`, schema)
 
-  return branch
-}
-
-export const getBranch = async (id: string): Promise<Branch | null> => {
-  const data = await redis.hgetall(`branch:${id}`)
-  if (!data.id) return null
-  return {
-    ...data,
-    parentId: data.parentId || null,
-    imagePath: data.imagePath || null,
-  } as unknown as Branch
-}
-
-export const getChildBranches = async (parentId: string): Promise<Branch[]> => {
-  const ids = await redis.lrange(`branch:${parentId}:children`, 0, -1)
-  const branches = await Promise.all(ids.map(getBranch))
-  return branches.filter((b): b is Branch => b !== null)
-}
+export const getChildBranches = async (parentId: string): Promise<Branch[]> =>
+  listGetAll(`branch:${parentId}:children`, getBranch)
 
 export const addChildBranch = async (parentId: string, childId: string) => {
-  await redis.rpush(`branch:${parentId}:children`, childId)
+  await listPush(`branch:${parentId}:children`, childId)
 }
 
 export const removeChildBranch = async (parentId: string, childId: string) => {
-  await redis.lrem(`branch:${parentId}:children`, 0, childId)
+  await listRemove(`branch:${parentId}:children`, childId)
 }
 
 export const deleteBranchRecursive = async (id: string) => {
-  const childIds = await redis.lrange(`branch:${id}:children`, 0, -1)
+  const childIds = await listAll(`branch:${id}:children`)
   for (const childId of childIds) {
     await deleteBranchRecursive(childId)
   }
@@ -88,12 +65,12 @@ export const getRecentPlaylists = async (venueIds: string[]): Promise<Branch[]> 
 }
 
 export const updateBranch = async (id: string, updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath'>>) => {
-  const mapped: Record<string, string> = {}
+  const mapped: Record<string, unknown> = {}
   if (updates.name !== undefined) mapped.name = updates.name
   if (updates.type !== undefined) mapped.type = updates.type
-  if (updates.imagePath !== undefined) mapped.imagePath = updates.imagePath ?? ''
+  if (updates.imagePath !== undefined) mapped.imagePath = updates.imagePath
 
   if (Object.keys(mapped).length > 0) {
-    await redis.hset(`branch:${id}`, mapped)
+    await hashSet(`branch:${id}`, mapped, schema)
   }
 }

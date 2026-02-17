@@ -41,7 +41,8 @@ const UserManager = ({ venueId }: UserManagerProps) => {
 
   useEffect(() => {
     loadUsers()
-  }, [venueId]) // loadUsers is stable via React Compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadUsers is stable via React Compiler; including it would cause an infinite loop
+  }, [venueId])
 
   const [state, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {

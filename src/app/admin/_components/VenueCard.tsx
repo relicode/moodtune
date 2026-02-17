@@ -58,7 +58,7 @@ const VenueCard = ({ venue }: VenueCardProps) => {
           </IconButton>
         </Box>
         {tab === 0 && <UserManager venueId={venue.id} />}
-        {tab === 1 && <BranchTree venueId={venue.id} parentId={null} />}
+        {tab === 1 && <BranchTree venueId={venue.id} />}
       </AccordionDetails>
     </Accordion>
   )

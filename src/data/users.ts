@@ -3,30 +3,23 @@ import 'server-only'
 import { compare, hash } from 'bcryptjs'
 
 import type { User, UserRole } from '$/types'
+import { hashCreate, hashGet } from './dal'
 import redis from './redis'
 
-export const createUser = async (username: string, password: string, role: UserRole): Promise<User> => {
-  const id = crypto.randomUUID()
-  const passwordHash = await hash(password, 12)
-  const user: User = {
-    id,
-    username,
-    passwordHash,
-    role,
-    createdAt: new Date().toISOString(),
-  }
+const schema = {} as const
 
-  await redis.hset(`user:${id}`, user)
-  await redis.set(`user:byUsername:${username}`, id)
+export const createUser = async (username: string, password: string, role: UserRole): Promise<User> => {
+  const existing = await redis.get(`user:byUsername:${username}`)
+  if (existing) throw new Error(`Username "${username}" is already taken`)
+
+  const passwordHash = await hash(password, 12)
+  const user = await hashCreate<User>('user', { username, passwordHash, role }, schema)
+  await redis.set(`user:byUsername:${username}`, user.id)
 
   return user
 }
 
-export const getUserById = async (id: string): Promise<User | null> => {
-  const data = await redis.hgetall(`user:${id}`)
-  if (!data.id) return null
-  return data as unknown as User
-}
+export const getUserById = async (id: string): Promise<User | null> => hashGet<User>(`user:${id}`, schema)
 
 export const getUserByUsername = async (username: string): Promise<User | null> => {
   const id = await redis.get(`user:byUsername:${username}`)
