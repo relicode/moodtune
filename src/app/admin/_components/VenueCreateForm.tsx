@@ -22,7 +22,6 @@ const VenueCreateForm = () => {
   return (
     <Stack component="form" ref={formRef} action={formAction} direction="row" spacing={2} sx={{ mb: 3 }}>
       <TextField name="name" label="Venue Name" size="small" required autoComplete="off" />
-      <TextField name="description" label="Description" size="small" autoComplete="off" />
       <Button type="submit" variant="contained" disabled={pending}>
         Add Venue
       </Button>

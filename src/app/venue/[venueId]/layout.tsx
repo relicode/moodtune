@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 
 import VenueBottomNav from '$/components/VenueBottomNav'
@@ -24,7 +25,7 @@ const VenueLayout = async ({
       : []
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Stack sx={{ flexGrow: 1 }}>
       <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
         {venue && (
           <Box sx={{ mb: 3 }}>
@@ -39,7 +40,7 @@ const VenueLayout = async ({
         {children}
       </Box>
       {session?.role === 'user' && <VenueBottomNav playlists={playlists} />}
-    </Box>
+    </Stack>
   )
 }
 

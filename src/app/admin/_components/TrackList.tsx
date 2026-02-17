@@ -1,16 +1,20 @@
 'use client'
 
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import IconButton from '@mui/material/IconButton'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
+import Stack from '@mui/material/Stack'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useState } from 'react'
 
 import { removeTrackAction } from '$/actions/admin'
 import type { Track } from '$/types'
+import TrackEditForm from './TrackEditForm'
 
 type TrackListProps = {
   branchId: string
@@ -23,10 +27,54 @@ const formatDuration = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+type TrackItemProps = {
+  branchId: string
+  track: Track
+  onChanged: () => void
+}
+
+const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
+  const [editOpen, setEditOpen] = useState(false)
+  const confirm = useConfirm()
+
+  const handleDelete = async () => {
+    const { confirmed } = await confirm({ description: `Remove track "${track.title}"?` })
+    if (!confirmed) return
+    await removeTrackAction(branchId, track.id)
+    onChanged()
+  }
+
+  return (
+    <>
+      <ListItem
+        secondaryAction={
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="Edit track">
+              <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete track">
+              <IconButton edge="end" size="small" color="error" onClick={handleDelete}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        }
+      >
+        <ListItemText
+          primary={track.title}
+          secondary={`${track.artist || 'Unknown'} • ${formatDuration(track.duration)}`}
+        />
+      </ListItem>
+      <TrackEditForm track={track} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
+    </>
+  )
+}
+
 const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
-  const confirm = useConfirm()
 
   const loadTracks = async () => {
     setLoading(true)
@@ -45,16 +93,6 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
     loadTracks()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadTracks is stable via React Compiler; including it would cause an infinite loop
   }, [branchId, refreshKey])
-
-  const handleDelete = async (trackId: string, title: string) => {
-    try {
-      await confirm({ description: `Remove track "${title}"?` })
-      await removeTrackAction(branchId, trackId)
-      loadTracks()
-    } catch {
-      // cancelled
-    }
-  }
 
   if (loading) {
     return (
@@ -75,19 +113,7 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   return (
     <List dense>
       {tracks.map((track) => (
-        <ListItem
-          key={track.id}
-          secondaryAction={
-            <IconButton edge="end" size="small" color="error" onClick={() => handleDelete(track.id, track.title)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          <ListItemText
-            primary={track.title}
-            secondary={`${track.artist || 'Unknown'} • ${formatDuration(track.duration)}`}
-          />
-        </ListItem>
+        <TrackItem key={track.id} branchId={branchId} track={track} onChanged={loadTracks} />
       ))}
     </List>
   )
