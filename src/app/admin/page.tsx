@@ -2,8 +2,8 @@ import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 
 import { getAllVenues } from '$/data/venues'
-import VenueCreateForm from './_components/VenueCreateForm'
-import VenueList from './_components/VenueList'
+import VenueCreateForm from './VenueCreateForm'
+import VenueList from './VenueList'
 
 const AdminPage = async () => {
   const venues = await getAllVenues()

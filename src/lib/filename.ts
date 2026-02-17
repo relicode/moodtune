@@ -1,3 +1,8 @@
+export const sanitizeExtension = (name: string): string => {
+  const ext = name.split('.').pop() ?? ''
+  return ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'bin'
+}
+
 export const parseFilename = (name: string): { artist: string | null; title: string | null } => {
   const stem = name.replace(/\.[^.]+$/, '')
   const parts = stem.split('___')

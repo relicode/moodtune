@@ -42,8 +42,15 @@ const VenueCard = ({ venue }: VenueCardProps) => {
 
   return (
     <Accordion variant="outlined" disableGutters>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography sx={{ flex: 1, fontWeight: 500, mr: 1 }}>{venue.name}</Typography>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        sx={{
+          '& .MuiAccordionSummary-content': { flexGrow: 0 },
+          justifyContent: 'center',
+          gap: 0.5,
+        }}
+      >
+        <Typography sx={{ fontWeight: 500 }}>{venue.name}</Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>

@@ -5,7 +5,7 @@ import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 
 import { getSessionFromCookie } from '$/lib/session'
-import AdminLogoutButton from './_components/AdminLogoutButton'
+import AdminLogoutButton from './AdminLogoutButton'
 
 const AdminLayout = async ({ children }: { children: React.ReactNode }) => {
   const session = await getSessionFromCookie()
