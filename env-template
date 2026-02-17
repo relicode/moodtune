@@ -1,5 +1,19 @@
 # Copy to .env.local
 
-# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/'
+# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/
+
+REDIS_URL=redis://localhost:6379
+
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_USE_SSL=false
+MINIO_BUCKET=moodtune
+
+JWT_SECRET=change-me-to-a-random-secret
+
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
 
 # vi: filetype=sh sw=2 ts=2 et

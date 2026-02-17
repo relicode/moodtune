@@ -1,3 +1,4 @@
+import GlobalStyles from '@mui/material/GlobalStyles'
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
@@ -10,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Moodplayer',
-  description: 'Moodplayer - Ambiance for yours venue',
+  title: 'Moodtune',
+  description: 'Moodtune - Ambiance for your venue',
 }
 
 const RootLayout = ({
@@ -22,7 +23,12 @@ const RootLayout = ({
   <html lang="en" suppressHydrationWarning>
     <body className={inter.variable}>
       <InitColorSchemeScript attribute="class" />
-      <ThemeRegistry>{children}</ThemeRegistry>
+      <ThemeRegistry>
+        <GlobalStyles
+          styles={{ 'html, body': { height: '100%' }, body: { display: 'flex', flexDirection: 'column' } }}
+        />
+        {children}
+      </ThemeRegistry>
     </body>
   </html>
 )

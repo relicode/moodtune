@@ -34,7 +34,11 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 
 ## Key Technical Details
 
-- **React Compiler** is enabled (`reactCompiler: true` in next.config.ts) — leverage automatic memoization instead of manual `useMemo`/`useCallback`/`React.memo`
+- **React Compiler** is enabled (`reactCompiler: true` in next.config.ts):
+  - Never use `useMemo`, `useCallback`, or `React.memo` — the compiler handles memoization automatically
+  - Never access refs during render — only read/write `ref.current` in event handlers or effects
+  - Never call setState synchronously inside effects — use inline async with a cancellation flag instead
+  - The `react-hooks/exhaustive-deps` ESLint rule does not understand compiler memoization; functions defined in component scope are stable at runtime, so omitting them from dependency arrays is safe (add a `// stable via React Compiler` comment)
 - **MUI 7** with Emotion — the ThemeRegistry is at `$/app/ThemeRegistry`; import MUI components individually (e.g., `import Button from '@mui/material/Button'`)
 - **Prettier** config: no semicolons, single quotes, trailing commas (es5), 120 char width, import sorting via `@ianvs/prettier-plugin-sort-imports`
 - **ESLint** uses flat config with `eslint-config-next` (core-web-vitals + typescript)
