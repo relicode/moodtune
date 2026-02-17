@@ -14,7 +14,9 @@
     "lint:eslint": "eslint",
     "lint:prettier": "prettier --check .",
     "lint:typescript": "tsc --noEmit",
-    "seed": "tsx scripts/seed.ts",
+    "db:delete": "tsx scripts/reset.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "npm run db:delete && npm run db:seed",
     "show-redis": "tsx scripts/show-redis.ts",
     "start": "next start",
     "test": "vitest run"
