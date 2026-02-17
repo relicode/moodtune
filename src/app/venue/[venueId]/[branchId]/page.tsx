@@ -8,6 +8,7 @@ import BranchGrid from '$/components/BranchGrid'
 import Link from '$/components/Link'
 import { getBranch, getChildBranches } from '$/data/branches'
 import { getVenue } from '$/data/venues'
+import { getSessionFromCookie } from '$/lib/session'
 
 const MAX_ANCESTOR_DEPTH = 10
 
@@ -69,10 +70,13 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
     )
   }
 
+  const session = await getSessionFromCookie()
+  const isAdmin = session?.role === 'admin'
+
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={!isAdmin ? { flex: 1, justifyContent: 'center' } : undefined}>
       {header}
-      <AudioPlayer branchId={branchId} />
+      <AudioPlayer branchId={branchId} role={session?.role ?? 'user'} />
     </Stack>
   )
 }

@@ -1,8 +1,10 @@
 'use client'
 
-import UndoIcon from '@mui/icons-material/Undo'
 import LogoutIcon from '@mui/icons-material/Logout'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
+import StarIcon from '@mui/icons-material/Star'
+import UndoIcon from '@mui/icons-material/Undo'
+import Badge from '@mui/material/Badge'
 import BottomNavigation from '@mui/material/BottomNavigation'
 import BottomNavigationAction from '@mui/material/BottomNavigationAction'
 import Paper from '@mui/material/Paper'
@@ -12,13 +14,14 @@ import { useEffect, useState } from 'react'
 
 import { logout } from '$/actions/auth'
 import { getParentBranchInfo } from '$/actions/branches'
-import type { PlaylistSummary } from '$/types'
+import type { PlaylistSummary, UserRole } from '$/types'
 
 type VenueBottomNavProps = {
   playlists: PlaylistSummary[]
+  role: UserRole
 }
 
-const VenueBottomNav = ({ playlists }: VenueBottomNavProps) => {
+const VenueBottomNav = ({ playlists, role }: VenueBottomNavProps) => {
   const pathname = usePathname()
   const [parentHref, setParentHref] = useState<string | null>(null)
 
@@ -68,7 +71,19 @@ const VenueBottomNav = ({ playlists }: VenueBottomNavProps) => {
         ))}
         <BottomNavigationAction
           label="Logout"
-          icon={<LogoutIcon />}
+          icon={
+            role === 'admin' ? (
+              <Badge
+                badgeContent={<StarIcon sx={{ fontSize: '0.75rem' }} />}
+                color="warning"
+                overlap="circular"
+              >
+                <LogoutIcon />
+              </Badge>
+            ) : (
+              <LogoutIcon />
+            )
+          }
           onClick={async () => {
             await logout()
           }}

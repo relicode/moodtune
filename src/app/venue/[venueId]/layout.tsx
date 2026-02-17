@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box'
+import Container from '@mui/material/Container'
 import Stack from '@mui/material/Stack'
 
 import VenueBottomNav from '$/components/VenueBottomNav'
@@ -15,8 +16,12 @@ const VenueLayout = async ({ children }: { children: React.ReactNode }) => {
 
   return (
     <Stack sx={{ flexGrow: 1, minHeight: 0 }}>
-      <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>{children}</Box>
-      {session && <VenueBottomNav playlists={playlists} />}
+      <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <Container maxWidth="md" sx={{ py: 3, display: 'flex', flexDirection: 'column', flex: 1 }}>
+          {children}
+        </Container>
+      </Box>
+      {session && <VenueBottomNav playlists={playlists} role={session.role} />}
     </Stack>
   )
 }
