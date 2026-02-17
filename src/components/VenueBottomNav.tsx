@@ -1,6 +1,6 @@
 'use client'
 
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import UndoIcon from '@mui/icons-material/Undo'
 import LogoutIcon from '@mui/icons-material/Logout'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
 import BottomNavigation from '@mui/material/BottomNavigation'
@@ -50,7 +50,7 @@ const VenueBottomNav = ({ playlists }: VenueBottomNavProps) => {
         {parentHref && (
           <BottomNavigationAction
             label="Back"
-            icon={<ArrowUpwardIcon />}
+            icon={<UndoIcon />}
             component={Link}
             href={parentHref}
             prefetch={false}
