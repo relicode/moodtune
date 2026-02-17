@@ -2,7 +2,7 @@ import 'server-only'
 
 import type { Track } from '$/types'
 import { hashCreate, hashGet, hashSet, listGetAll, listPush, listRemove } from './dal'
-import { AUDIO_BUCKET, getPresignedUrl as getMinioPresignedUrl, removeFile } from './minio'
+import { AUDIO_BUCKET, removeFile } from './minio'
 import redis from './redis'
 
 const schema = { duration: 'number' } as const
@@ -20,10 +20,8 @@ export const removeTrackFromBranch = async (branchId: string, trackId: string) =
   await listRemove(`branch:${branchId}:tracks`, trackId)
 }
 
-export const getBranchTracks = async (branchId: string): Promise<Track[]> =>
+export const getPlaylistTracks = async (branchId: string): Promise<Track[]> =>
   listGetAll(`branch:${branchId}:tracks`, getTrack)
-
-export const getTrackPresignedUrl = async (fileName: string) => getMinioPresignedUrl(AUDIO_BUCKET, fileName)
 
 export const updateTrack = async (id: string, fields: Partial<Pick<Track, 'title' | 'artist'>>) => {
   await hashSet(`track:${id}`, fields, schema)

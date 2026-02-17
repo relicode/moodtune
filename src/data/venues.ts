@@ -1,8 +1,22 @@
 import 'server-only'
 
 import type { Venue } from '$/types'
-import { hashCreate, hashGet, hashSet, listAll, listPush, listRemove, setAdd, setAll, setGetAll, setHas, setRemove } from './dal'
+import { deleteBranchRecursive } from './branches'
+import {
+  hashCreate,
+  hashGet,
+  hashSet,
+  listAll,
+  listPush,
+  listRemove,
+  setAdd,
+  setAll,
+  setGetAll,
+  setHas,
+  setRemove,
+} from './dal'
 import redis from './redis'
+import { deleteUser } from './users'
 
 const schema = {} as const
 
@@ -21,6 +35,16 @@ export const updateVenue = async (id: string, fields: Partial<{ name: string }>)
 }
 
 export const deleteVenue = async (id: string) => {
+  const userIds = await getVenueUserIds(id)
+  for (const userId of userIds) {
+    await deleteUser(userId)
+  }
+
+  const branchIds = await getRootBranchIds(id)
+  for (const branchId of branchIds) {
+    await deleteBranchRecursive(branchId)
+  }
+
   await redis.del(`venue:${id}`)
   await setRemove('venues', id)
   await redis.del(`venue:${id}:users`)
@@ -40,8 +64,7 @@ export const getVenueUserIds = async (venueId: string): Promise<string[]> => set
 export const isUserInVenue = async (venueId: string, userId: string): Promise<boolean> =>
   setHas(`venue:${venueId}:users`, userId)
 
-export const getRootBranchIds = async (venueId: string): Promise<string[]> =>
-  listAll(`venue:${venueId}:branches`)
+export const getRootBranchIds = async (venueId: string): Promise<string[]> => listAll(`venue:${venueId}:branches`)
 
 export const addRootBranch = async (venueId: string, branchId: string) => {
   await listPush(`venue:${venueId}:branches`, branchId)

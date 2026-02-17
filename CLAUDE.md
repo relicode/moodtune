@@ -14,6 +14,9 @@ Moodtune is a Next.js 16 application using React 19 and MUI 7. It uses the App R
 - `npm run lint:typescript` — type-check (`tsc --noEmit`)
 - `npm run lint:prettier` — check formatting
 - `npm run format` — auto-fix ESLint + Prettier
+- `npm run test` — all tests (unit + e2e)
+- `npm run test:unit` — unit tests (vitest)
+- `npm run test:e2e` — end-to-end tests (requires dev server running)
 
 ## Environment Setup
 

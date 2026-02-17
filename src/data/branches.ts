@@ -2,7 +2,9 @@ import 'server-only'
 
 import type { Branch, BranchType } from '$/types'
 import { hashCreate, hashGet, hashSet, listAll, listGetAll, listPush, listRemove } from './dal'
+import { IMAGE_BUCKET, removeFile } from './minio'
 import redis from './redis'
+import { deleteTrack } from './tracks'
 import { getRootBranchIds } from './venues'
 
 const schema = { parentId: 'nullable', imagePath: 'nullable' } as const
@@ -32,6 +34,16 @@ export const deleteBranchRecursive = async (id: string) => {
   const childIds = await listAll(`branch:${id}:children`)
   for (const childId of childIds) {
     await deleteBranchRecursive(childId)
+  }
+
+  const trackIds = await listAll(`branch:${id}:tracks`)
+  for (const trackId of trackIds) {
+    await deleteTrack(trackId)
+  }
+
+  const branch = await getBranch(id)
+  if (branch?.imagePath) {
+    await removeFile(IMAGE_BUCKET, branch.imagePath)
   }
 
   await redis.del(`branch:${id}`)

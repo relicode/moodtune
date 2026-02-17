@@ -35,7 +35,7 @@ export const POST = async (request: Request) => {
   }
 
   const ext = sanitizeExtension(audioFile.name)
-  const fileName = `${session.username}/${crypto.randomUUID()}.${ext}`
+  const fileName = `audio/${crypto.randomUUID()}.${ext}`
   const buffer = Buffer.from(await audioFile.arrayBuffer())
 
   let meta: AudioMetadata
@@ -49,7 +49,7 @@ export const POST = async (request: Request) => {
   const title = formTitle || meta.title || fileTitle || 'Unknown Track'
   const artist = formArtist || meta.artist || fileArtist || 'Unknown Artist'
 
-  await uploadFile(AUDIO_BUCKET, fileName, buffer, audioFile.type, { duration: String(meta.duration) })
+  await uploadFile(AUDIO_BUCKET, fileName, buffer, audioFile.type)
 
   try {
     const track = await createTrack(title, artist, fileName, meta.duration)

@@ -4,7 +4,6 @@ import { getImageUrl } from '$/actions/media'
 import AudioPlayer from '$/components/AudioPlayer'
 import BranchGrid from '$/components/BranchGrid'
 import { getBranch, getChildBranches } from '$/data/branches'
-import { getBranchTracks } from '$/data/tracks'
 
 const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branchId: string }> }) => {
   const { venueId, branchId } = await params
@@ -26,8 +25,7 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
     return <BranchGrid venueId={venueId} branches={branchItems} />
   }
 
-  const tracks = await getBranchTracks(branchId)
-  return <AudioPlayer tracks={tracks} />
+  return <AudioPlayer branchId={branchId} />
 }
 
 export default BranchPage

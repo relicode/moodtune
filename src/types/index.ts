@@ -49,6 +49,15 @@ export type Track = {
   createdAt: string
 }
 
+export type PlaylistTrack = {
+  url: string
+  duration: number
+  id?: string
+  title?: string
+  artist?: string
+  createdAt?: string
+}
+
 export type ActionResult = {
   success: boolean
   error?: string

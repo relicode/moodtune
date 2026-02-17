@@ -5,6 +5,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
 import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
 import List from '@mui/material/List'
@@ -14,11 +15,10 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
-import { getTrackUrl } from '$/actions/media'
-import type { Track } from '$/types'
+import type { PlaylistTrack } from '$/types'
 
 type AudioPlayerProps = {
-  tracks: Track[]
+  branchId: string
 }
 
 const formatTime = (seconds: number) => {
@@ -27,31 +27,50 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
+const AudioPlayer = ({ branchId }: AudioPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const [tracks, setTracks] = useState<PlaylistTrack[]>([])
+  const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [audioSrc, setAudioSrc] = useState<string | null>(null)
-
-  const currentTrack = tracks[currentIndex]
 
   useEffect(() => {
     let cancelled = false
-    const loadInitial = async () => {
-      if (tracks.length === 0) return
-      const url = await getTrackUrl(tracks[0].fileName)
-      if (!cancelled && url) {
-        setAudioSrc(url)
-        setCurrentIndex(0)
+
+    const fetchTracks = async () => {
+      setLoading(true)
+      setCurrentIndex(0)
+      setIsPlaying(false)
+      setCurrentTime(0)
+      setDuration(0)
+
+      try {
+        const res = await fetch(`/api/playlist/${branchId}`)
+        if (cancelled) return
+
+        if (res.ok) {
+          const data = await res.json()
+          setTracks(data.tracks)
+        } else {
+          setTracks([])
+        }
+      } catch {
+        if (!cancelled) setTracks([])
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
-    loadInitial()
+
+    fetchTracks()
     return () => {
       cancelled = true
     }
-  }, [tracks])
+  }, [branchId])
+
+  const currentTrack = tracks[currentIndex]
+  const audioSrc = currentTrack?.url ?? null
 
   useEffect(() => {
     const audio = audioRef.current
@@ -64,7 +83,9 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
     audio.addEventListener('durationchange', onDurationChange)
 
     if (isPlaying) {
-      audio.play()
+      audio.play().catch(() => {})
+    } else {
+      audio.pause()
     }
 
     return () => {
@@ -77,14 +98,9 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
     const audio = audioRef.current
     if (!audio) return
 
-    const onEnded = async () => {
+    const onEnded = () => {
       if (currentIndex < tracks.length - 1) {
-        const nextTrack = tracks[currentIndex + 1]
-        const url = await getTrackUrl(nextTrack.fileName)
-        if (url) {
-          setAudioSrc(url)
-          setCurrentIndex(currentIndex + 1)
-        }
+        setCurrentIndex(currentIndex + 1)
       } else {
         setIsPlaying(false)
       }
@@ -96,15 +112,10 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
     }
   }, [currentIndex, tracks])
 
-  const loadAndPlay = async (index: number) => {
-    const track = tracks[index]
-    if (!track) return
-    const url = await getTrackUrl(track.fileName)
-    if (url) {
-      setAudioSrc(url)
-      setCurrentIndex(index)
-      setIsPlaying(true)
-    }
+  const loadAndPlay = (index: number) => {
+    if (!tracks[index]) return
+    setCurrentIndex(index)
+    setIsPlaying(true)
   }
 
   const togglePlay = async () => {
@@ -137,6 +148,14 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
     audio.currentTime = ratio * duration
   }
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
   if (tracks.length === 0) {
     return (
       <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
@@ -153,7 +172,7 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
 
       <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
         <Typography variant="subtitle1" fontWeight="bold">
-          {currentTrack?.title || 'No track selected'}
+          {currentTrack?.title ?? `Track ${currentIndex + 1}`}
         </Typography>
         {currentTrack?.artist && (
           <Typography variant="body2" color="text.secondary">
@@ -184,8 +203,8 @@ const AudioPlayer = ({ tracks }: AudioPlayerProps) => {
 
       <List>
         {tracks.map((track, index) => (
-          <ListItemButton key={track.id} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
-            <ListItemText primary={track.title} secondary={track.artist || undefined} />
+          <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
+            <ListItemText primary={track.title ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
             <Typography variant="caption" color="text.secondary">
               {formatTime(track.duration)}
             </Typography>

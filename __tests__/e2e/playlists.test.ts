@@ -35,7 +35,7 @@ describe('GET /api/playlist/[playlistId]', () => {
     expect(data.tracks).toHaveLength(1)
 
     const t = data.tracks[0]
-    expect(t.url).toEqual(expect.any(String))
+    expect(t.url).toBe(`/api/audio/${branch.id}/${track.id}`)
     expect(t.id).toBe(track.id)
     expect(t.title).toBe('Test Title')
     expect(t.artist).toBe('Test Artist')
@@ -57,7 +57,7 @@ describe('GET /api/playlist/[playlistId]', () => {
     expect(data.tracks).toHaveLength(1)
 
     const t = data.tracks[0]
-    expect(t.url).toEqual(expect.any(String))
+    expect(t.url).toMatch(/^\/api\/audio\//)
     expect(t.duration).toBe(120.5)
     expect(Object.keys(t)).toEqual(['url', 'duration'])
   })

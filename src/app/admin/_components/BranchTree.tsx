@@ -57,7 +57,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
       <Stack direction="row" alignItems="center">
         <ListItemButton onClick={() => setOpen(!open)} sx={{ flexGrow: 1 }}>
           <ListItemIcon>
-            {branch.type === 'folder' ? (open ? <FolderOpenIcon /> : <FolderIcon />) : <QueueMusicIcon />}
+            {branch.type === 'folder' ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
           </ListItemIcon>
           <ListItemText primary={branch.name} />
         </ListItemButton>
@@ -82,7 +82,13 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
 
       <BranchEditForm branch={branch} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
       {branch.type === 'folder' && (
-        <BranchCreateForm venueId={venueId} parentId={branch.id} open={addOpen} onClose={() => setAddOpen(false)} onCreated={onChanged} />
+        <BranchCreateForm
+          venueId={venueId}
+          parentId={branch.id}
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          onCreated={onChanged}
+        />
       )}
 
       <Collapse in={open} unmountOnExit>
@@ -108,9 +114,8 @@ const BranchTree = ({ venueId, parentId }: BranchTreeProps) => {
   const loadBranches = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ venueId })
-      if (parentId) params.set('parentId', parentId)
-      const res = await fetch(`/api/admin/branches?${params}`)
+      const url = parentId ? `/api/admin/branches/${venueId}?parentId=${parentId}` : `/api/admin/branches/${venueId}`
+      const res = await fetch(url)
       const data = await res.json()
       setBranches(data.branches || [])
     } catch {
