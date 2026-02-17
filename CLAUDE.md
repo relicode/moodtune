@@ -14,11 +14,10 @@ Moodtune is a Next.js 16 application using React 19 and MUI 7. It uses the App R
 - `npm run lint:typescript` — type-check (`tsc --noEmit`)
 - `npm run lint:prettier` — check formatting
 - `npm run format` — auto-fix ESLint + Prettier
-- `docker compose up redis` — start Redis locally
 
 ## Environment Setup
 
-Copy `env-template` to `.env.local`. Requires `REDIS_URL` (default: `redis://localhost:6379`). Node version: 24.11.1 (see `.nvmrc`).
+Copy `env-template` to `.env.local`. Node version: 24.11.1 (see `.nvmrc`).
 
 ## Architecture
 

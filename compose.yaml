@@ -1,17 +1,4 @@
 services:
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    ports:
-      - '6379:6379'
-    volumes:
-      - ./data/redis:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   app:
     build:
       context: .
@@ -23,8 +10,3 @@ services:
     profiles: [app]
     ports:
       - '3000:3000'
-    environment:
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      redis:
-        condition: service_healthy
