@@ -40,7 +40,7 @@ const proxy = async (request: NextRequest) => {
 
   if (pathname.startsWith('/admin')) {
     if (!session || session.role !== 'admin') {
-      return NextResponse.redirect(new URL('/admin-login', request.url))
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
