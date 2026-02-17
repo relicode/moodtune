@@ -7,7 +7,7 @@ import { getAllVenues, getVenueUserIds } from '$/data/venues'
 import { createSession, deleteSessionCookie, setSessionCookie } from '$/lib/session'
 import type { LoginFormState } from '$/types'
 
-export const loginVenueUser = async (_prev: LoginFormState, formData: FormData): Promise<LoginFormState> => {
+export const login = async (_prev: LoginFormState, formData: FormData): Promise<LoginFormState> => {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
 
@@ -15,14 +15,28 @@ export const loginVenueUser = async (_prev: LoginFormState, formData: FormData):
     return { success: false, error: 'Username and password are required' }
   }
 
+  await deleteSessionCookie()
+
   const user = await getUserByUsername(username)
-  if (!user || user.role !== 'user') {
+  if (!user) {
     return { success: false, error: 'Invalid credentials' }
   }
 
   const valid = await verifyPassword(password, user.passwordHash)
   if (!valid) {
     return { success: false, error: 'Invalid credentials' }
+  }
+
+  if (user.role === 'admin') {
+    const token = await createSession({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      venueIds: [],
+    })
+
+    await setSessionCookie(token)
+    redirect('/admin')
   }
 
   const venues = await getAllVenues()
@@ -48,35 +62,6 @@ export const loginVenueUser = async (_prev: LoginFormState, formData: FormData):
 
   await setSessionCookie(token)
   redirect(`/venue/${venueIds[0]}`)
-}
-
-export const loginAdmin = async (_prev: LoginFormState, formData: FormData): Promise<LoginFormState> => {
-  const username = formData.get('username') as string
-  const password = formData.get('password') as string
-
-  if (!username || !password) {
-    return { success: false, error: 'Username and password are required' }
-  }
-
-  const user = await getUserByUsername(username)
-  if (!user || user.role !== 'admin') {
-    return { success: false, error: 'Invalid credentials' }
-  }
-
-  const valid = await verifyPassword(password, user.passwordHash)
-  if (!valid) {
-    return { success: false, error: 'Invalid credentials' }
-  }
-
-  const token = await createSession({
-    userId: user.id,
-    username: user.username,
-    role: user.role,
-    venueIds: [],
-  })
-
-  await setSessionCookie(token)
-  redirect('/admin')
 }
 
 export const logout = async () => {
