@@ -30,7 +30,6 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const [snackError, setSnackError] = useState<string | null>(null)
 
   const loadUsers = async () => {
-    setLoading(true)
     try {
       const res = await fetch(`/api/admin/venue-users/${venueId}`)
       const data = await res.json()
