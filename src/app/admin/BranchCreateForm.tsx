@@ -22,13 +22,12 @@ import ImagePicker from './ImagePicker'
 type BranchCreateFormProps = {
   venueId: string
   parentId?: string
-  allowedType?: 'folder' | 'playlist'
   open: boolean
   onClose: () => void
   onCreated: () => void
 }
 
-const BranchCreateForm = ({ venueId, parentId, allowedType, open, onClose, onCreated }: BranchCreateFormProps) => {
+const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: BranchCreateFormProps) => {
   const formRef = useRef<HTMLFormElement>(null)
   const label = parentId ? 'New sub-branch' : 'New branch'
 
@@ -55,23 +54,19 @@ const BranchCreateForm = ({ venueId, parentId, allowedType, open, onClose, onCre
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Stack direction="row" spacing={2}>
               <TextField name="name" label="Name" size="small" required autoComplete="off" sx={{ flex: 5 }} />
-              {allowedType ? (
-                <input type="hidden" name="type" value={allowedType} />
-              ) : (
-                <FormControl size="small" sx={{ flex: 3 }}>
-                  <InputLabel>Type</InputLabel>
-                  <Select name="type" label="Type" defaultValue="folder">
-                    <MenuItem value="folder">
-                      <FolderIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
-                      Folder
-                    </MenuItem>
-                    <MenuItem value="playlist">
-                      <QueueMusicIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
-                      Playlist
-                    </MenuItem>
-                  </Select>
-                </FormControl>
-              )}
+              <FormControl size="small" sx={{ flex: 3 }}>
+                <InputLabel>Type</InputLabel>
+                <Select name="type" label="Type" defaultValue="folder">
+                  <MenuItem value="folder">
+                    <FolderIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                    Folder
+                  </MenuItem>
+                  <MenuItem value="playlist">
+                    <QueueMusicIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                    Playlist
+                  </MenuItem>
+                </Select>
+              </FormControl>
             </Stack>
             <ImagePicker name="image" />
           </Stack>

@@ -44,7 +44,6 @@ const BranchTreeContext = createContext<BranchTreeContext>({
 type BranchTreeProps = {
   venueId: string
   parentId?: string
-  onChildrenLoaded?: (childType: 'folder' | 'playlist' | undefined) => void
 }
 
 type BranchItemProps = {
@@ -58,10 +57,9 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const open = openBranches.includes(branch.id)
   const [editOpen, setEditOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
-  const [childType, setChildType] = useState<'folder' | 'playlist' | undefined>(undefined)
   const [trackRefreshKey, setTrackRefreshKey] = useState(0)
   const confirm = useConfirm()
-  const canAdd = branch.type === 'folder' && childType !== 'playlist'
+  const canAdd = branch.type === 'folder'
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -114,7 +112,6 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         <BranchCreateForm
           venueId={venueId}
           parentId={branch.id}
-          allowedType={childType === 'folder' ? 'folder' : undefined}
           open={addOpen}
           onClose={() => setAddOpen(false)}
           onCreated={() => {
@@ -127,7 +124,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
       <Collapse in={open} unmountOnExit>
         <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
           {branch.type === 'folder' ? (
-            <BranchTree venueId={venueId} parentId={branch.id} onChildrenLoaded={setChildType} />
+            <BranchTree venueId={venueId} parentId={branch.id} />
           ) : (
             <>
               <TrackList branchId={branch.id} refreshKey={trackRefreshKey} />
@@ -140,7 +137,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   )
 }
 
-const BranchTreeInner = ({ venueId, parentId, onChildrenLoaded }: BranchTreeProps) => {
+const BranchTreeInner = ({ venueId, parentId }: BranchTreeProps) => {
   const { refreshKey } = useContext(BranchTreeContext)
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
@@ -152,7 +149,6 @@ const BranchTreeInner = ({ venueId, parentId, onChildrenLoaded }: BranchTreeProp
       const data = await res.json()
       const loaded: Branch[] = data.branches || []
       setBranches(loaded)
-      onChildrenLoaded?.(loaded.length > 0 ? loaded[0].type : undefined)
     } catch {
       // ignore
     } finally {
@@ -186,7 +182,7 @@ const BranchTreeInner = ({ venueId, parentId, onChildrenLoaded }: BranchTreeProp
   )
 }
 
-const BranchTree = ({ venueId, parentId, onChildrenLoaded }: BranchTreeProps) => {
+const BranchTree = ({ venueId, parentId }: BranchTreeProps) => {
   const [openBranches, setOpenBranches] = useState<string[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -197,11 +193,11 @@ const BranchTree = ({ venueId, parentId, onChildrenLoaded }: BranchTreeProps) =>
   const refresh = () => setRefreshKey((k) => k + 1)
 
   // Only provide context at the root level (no parentId)
-  if (parentId) return <BranchTreeInner venueId={venueId} parentId={parentId} onChildrenLoaded={onChildrenLoaded} />
+  if (parentId) return <BranchTreeInner venueId={venueId} parentId={parentId} />
 
   return (
     <BranchTreeContext value={{ openBranches, toggleBranch, refreshKey, refresh }}>
-      <BranchTreeInner venueId={venueId} onChildrenLoaded={onChildrenLoaded} />
+      <BranchTreeInner venueId={venueId} />
     </BranchTreeContext>
   )
 }
