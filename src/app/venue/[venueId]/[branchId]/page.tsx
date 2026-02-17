@@ -1,11 +1,11 @@
 import Breadcrumbs from '@mui/material/Breadcrumbs'
-import Link from '@mui/material/Link'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 
 import { getImageUrl } from '$/actions/media'
 import AudioPlayer from '$/components/AudioPlayer'
 import BranchGrid from '$/components/BranchGrid'
+import Link from '$/components/Link'
 import { getBranch, getChildBranches } from '$/data/branches'
 import { getVenue } from '$/data/venues'
 
