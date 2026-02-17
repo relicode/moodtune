@@ -31,6 +31,7 @@ export type Branch = {
   name: string
   type: BranchType
   imagePath: string | null
+  random: number
   createdAt: string
 }
 

@@ -23,6 +23,17 @@ export const removeTrackFromBranch = async (branchId: string, trackId: string) =
 export const getPlaylistTracks = async (branchId: string): Promise<Track[]> =>
   listGetAll(`branch:${branchId}:tracks`, getTrack)
 
+export const addRandomTrackToBranch = async (branchId: string, trackId: string) => {
+  await listPush(`branch:${branchId}:randomTracks`, trackId)
+}
+
+export const removeRandomTrackFromBranch = async (branchId: string, trackId: string) => {
+  await listRemove(`branch:${branchId}:randomTracks`, trackId)
+}
+
+export const getRandomTracks = async (branchId: string): Promise<Track[]> =>
+  listGetAll(`branch:${branchId}:randomTracks`, getTrack)
+
 export const updateTrack = async (id: string, fields: Partial<Pick<Track, 'title' | 'artist'>>) => {
   await hashSet(`track:${id}`, fields, schema)
 }

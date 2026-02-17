@@ -7,15 +7,16 @@ import redis from './redis'
 import { deleteTrack } from './tracks'
 import { getRootBranchIds } from './venues'
 
-const schema = { parentId: 'nullable', imagePath: 'nullable' } as const
+const schema = { parentId: 'nullable', imagePath: 'nullable', random: 'number' } as const
 
 export const createBranch = async (
   venueId: string,
   parentId: string | null,
   name: string,
   type: BranchType,
-  imagePath: string | null
-): Promise<Branch> => hashCreate<Branch>('branch', { venueId, parentId, name, type, imagePath }, schema)
+  imagePath: string | null,
+  random = 0
+): Promise<Branch> => hashCreate<Branch>('branch', { venueId, parentId, name, type, imagePath, random }, schema)
 
 export const getBranch = async (id: string): Promise<Branch | null> => hashGet<Branch>(`branch:${id}`, schema)
 
@@ -41,6 +42,11 @@ export const deleteBranchRecursive = async (id: string) => {
     await deleteTrack(trackId)
   }
 
+  const randomTrackIds = await listAll(`branch:${id}:randomTracks`)
+  for (const trackId of randomTrackIds) {
+    await deleteTrack(trackId)
+  }
+
   const branch = await getBranch(id)
   if (branch?.imagePath) {
     await removeFile(IMAGE_BUCKET, branch.imagePath)
@@ -49,6 +55,7 @@ export const deleteBranchRecursive = async (id: string) => {
   await redis.del(`branch:${id}`)
   await redis.del(`branch:${id}:children`)
   await redis.del(`branch:${id}:tracks`)
+  await redis.del(`branch:${id}:randomTracks`)
 }
 
 // Max folder nesting depth to prevent runaway recursion and circular references
@@ -76,11 +83,15 @@ export const getRecentPlaylists = async (venueIds: string[]): Promise<Branch[]> 
   return playlists.slice(0, 3)
 }
 
-export const updateBranch = async (id: string, updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath'>>) => {
+export const updateBranch = async (
+  id: string,
+  updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath' | 'random'>>
+) => {
   const mapped: Record<string, unknown> = {}
   if (updates.name !== undefined) mapped.name = updates.name
   if (updates.type !== undefined) mapped.type = updates.type
   if (updates.imagePath !== undefined) mapped.imagePath = updates.imagePath
+  if (updates.random !== undefined) mapped.random = updates.random
 
   if (Object.keys(mapped).length > 0) {
     await hashSet(`branch:${id}`, mapped, schema)

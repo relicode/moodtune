@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
 import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
-import { deleteTrack, removeTrackFromBranch, updateTrack } from '$/data/tracks'
+import { deleteTrack, removeRandomTrackFromBranch, removeTrackFromBranch, updateTrack } from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
   addRootBranch,
@@ -190,12 +190,33 @@ export const updateTrackAction = async (_prev: ActionResult, formData: FormData)
   return { success: true }
 }
 
-export const removeTrackAction = async (branchId: string, trackId: string): Promise<ActionResult> => {
+export const removeTrackAction = async (
+  branchId: string,
+  trackId: string,
+  pool: 'main' | 'random' = 'main'
+): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error
 
-  await removeTrackFromBranch(branchId, trackId)
+  if (pool === 'random') {
+    await removeRandomTrackFromBranch(branchId, trackId)
+  } else {
+    await removeTrackFromBranch(branchId, trackId)
+  }
   await deleteTrack(trackId)
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const setBranchRandomAction = async (branchId: string, random: number): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  if (!Number.isFinite(random) || random < 0 || random > 100) {
+    return { success: false, error: 'Random must be between 0 and 100' }
+  }
+
+  await updateBranch(branchId, { random: Math.round(random) })
   revalidatePath('/admin')
   return { success: true }
 }

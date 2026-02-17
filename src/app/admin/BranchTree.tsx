@@ -3,29 +3,43 @@
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import Collapse from '@mui/material/Collapse'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
+import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useConfirm } from 'material-ui-confirm'
 import { createContext, useContext, useEffect, useState } from 'react'
 
-import { deleteBranchAction } from '$/actions/admin'
+import { deleteBranchAction, setBranchRandomAction } from '$/actions/admin'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
 import BranchEditForm from './BranchEditForm'
 import TrackList from './TrackList'
 import TrackUploader from './TrackUploader'
+
+const formatEstimatedDuration = (seconds: number) => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
 
 type BranchTreeContext = {
   openBranches: string[]
@@ -57,7 +71,12 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const open = openBranches.includes(branch.id)
   const [editOpen, setEditOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [tracksOpen, setTracksOpen] = useState(false)
   const [trackRefreshKey, setTrackRefreshKey] = useState(0)
+  const [randomRefreshKey, setRandomRefreshKey] = useState(0)
+  const [random, setRandom] = useState(branch.random ?? 0)
+  const [mainDuration, setMainDuration] = useState(0)
+  const [randomDuration, setRandomDuration] = useState(0)
   const confirm = useConfirm()
   const canAdd = branch.type === 'folder'
 
@@ -72,7 +91,10 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   return (
     <>
       <Stack direction="row" alignItems="center" spacing={1}>
-        <ListItemButton onClick={() => toggleBranch(branch.id)} sx={{ flexGrow: 1 }}>
+        <ListItemButton
+          onClick={() => (branch.type === 'folder' ? toggleBranch(branch.id) : setTracksOpen(true))}
+          sx={{ flexGrow: 1 }}
+        >
           <ListItemIcon>
             {branch.type === 'folder' ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
           </ListItemIcon>
@@ -91,12 +113,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
           </IconButton>
         </Tooltip>
         <Tooltip title="Open in venue">
-          <IconButton
-            size="small"
-            color="primary"
-            href={`/venue/${venueId}/${branch.id}`}
-            target="_blank"
-          >
+          <IconButton size="small" color="primary" href={`/venue/${venueId}/${branch.id}`} target="_blank">
             <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -121,18 +138,91 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         />
       )}
 
-      <Collapse in={open} unmountOnExit>
-        <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
-          {branch.type === 'folder' ? (
+      {branch.type === 'folder' && (
+        <Collapse in={open} unmountOnExit>
+          <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
             <BranchTree venueId={venueId} parentId={branch.id} />
-          ) : (
-            <>
-              <TrackList branchId={branch.id} refreshKey={trackRefreshKey} />
-              <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
-            </>
-          )}
-        </Box>
-      </Collapse>
+          </Box>
+        </Collapse>
+      )}
+
+      {branch.type === 'playlist' && (
+        <Dialog open={tracksOpen} onClose={() => setTracksOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ textAlign: 'center' }}>
+            {branch.name}
+            {(mainDuration > 0 || randomDuration > 0) &&
+              ` (${formatEstimatedDuration(mainDuration + randomDuration * (random / 100))})`}
+          </DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ px: 2, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ pt: 1, textAlign: 'center' }} gutterBottom>
+                Random probability: {random}%
+              </Typography>
+              <Slider
+                value={random}
+                min={0}
+                max={100}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(v) => `${v}%`}
+                onChange={(_e, v) => setRandom(v as number)}
+                onChangeCommitted={async (_e, v) => {
+                  const result = await setBranchRandomAction(branch.id, v as number)
+                  if (!result.success) setRandom(branch.random ?? 0)
+                }}
+              />
+            </Box>
+            <Stack
+              direction="row"
+              divider={<Divider orientation="vertical" flexItem />}
+              spacing={2}
+              sx={{ minHeight: 0, flex: 1 }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <Stack
+                  direction="row"
+                  justifyContent="center"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ mb: 2, flexShrink: 0 }}
+                >
+                  <Typography variant="subtitle2">Tracks</Typography>
+                  <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
+                </Stack>
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                  <TrackList branchId={branch.id} refreshKey={trackRefreshKey} onDurationChange={setMainDuration} />
+                </Box>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <Stack
+                  direction="row"
+                  justifyContent="center"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ mb: 2, flexShrink: 0 }}
+                >
+                  <Typography variant="subtitle2">Random Tracks</Typography>
+                  <TrackUploader
+                    branchId={branch.id}
+                    pool="random"
+                    onUploaded={() => setRandomRefreshKey((k) => k + 1)}
+                  />
+                </Stack>
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                  <TrackList
+                    branchId={branch.id}
+                    refreshKey={randomRefreshKey}
+                    pool="random"
+                    onDurationChange={setRandomDuration}
+                  />
+                </Box>
+              </Box>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTracksOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </>
   )
 }

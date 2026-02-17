@@ -24,6 +24,7 @@ import { parseFilename } from '$/lib/filename'
 type TrackUploaderProps = {
   branchId: string
   onUploaded: () => void
+  pool?: 'main' | 'random'
 }
 
 type FileEntry = {
@@ -40,7 +41,7 @@ type SnackState = {
   message: string
 }
 
-const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
+const TrackUploader = ({ branchId, onUploaded, pool = 'main' }: TrackUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
   const [uploading, setUploading] = useState(false)
@@ -93,6 +94,7 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
       formData.set('title', entry.title)
       formData.set('artist', entry.artist)
       formData.set('audio', entry.file)
+      if (pool === 'random') formData.set('pool', 'random')
 
       try {
         const res = await fetch('/api/admin/upload-track', { method: 'POST', body: formData })
@@ -148,7 +150,7 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
   return (
     <>
       <input ref={inputRef} type="file" accept="audio/*" multiple hidden onChange={handleFilesSelected} />
-      <Button variant="outlined" size="small" startIcon={<Add />} onClick={handleAddClick} sx={{ mt: 2 }}>
+      <Button variant="outlined" size="small" startIcon={<Add />} onClick={handleAddClick}>
         Add
       </Button>
       <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
