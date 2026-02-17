@@ -10,6 +10,7 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 import VolumeUpIcon from '@mui/icons-material/VolumeUp'
 import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
+import Container from '@mui/material/Container'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
 import List from '@mui/material/List'
@@ -189,24 +190,24 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <Box>
+    <Container maxWidth="md" disableGutters>
       <audio ref={audioRef} src={audioSrc || undefined} />
 
-      <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
+      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
         {isAdmin && (
           <>
             <Typography variant="subtitle1" fontWeight="bold">
               {currentTrack?.title ?? `Track ${currentIndex + 1}`}
             </Typography>
             {currentTrack?.artist && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
                 {currentTrack.artist}
               </Typography>
             )}
           </>
         )}
 
-        <Box onClick={handleProgressClick} sx={{ cursor: 'pointer', my: 1 }}>
+        <Box onClick={handleProgressClick} sx={{ cursor: 'pointer' }}>
           <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
         </Box>
 
@@ -262,7 +263,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
             <AccessTimeIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
           </Stack>
         </Stack>
-      </Box>
+      </Stack>
 
       {isAdmin && (
         <List>
@@ -276,7 +277,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
           ))}
         </List>
       )}
-    </Box>
+    </Container>
   )
 }
 

@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import Accordion from '@mui/material/Accordion'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
@@ -60,7 +61,7 @@ const VenueCard = ({ venue }: VenueCardProps) => {
             <Tab label="Branches" />
             <Tab label="Users" />
           </Tabs>
-          <Stack direction="row">
+          <Stack direction="row" spacing={1}>
             {tab === 0 && canAddRootBranch && (
               <Tooltip title="Add branch">
                 <IconButton size="small" color="success" onClick={() => setAddOpen(true)}>
@@ -71,6 +72,11 @@ const VenueCard = ({ venue }: VenueCardProps) => {
             <Tooltip title="Edit venue">
               <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
                 <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Open venue">
+              <IconButton size="small" color="primary" href={`/venue/${venue.id}`} target="_blank">
+                <OpenInNewIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Delete venue">

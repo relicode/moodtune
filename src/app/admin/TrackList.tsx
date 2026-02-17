@@ -48,7 +48,7 @@ const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
     <>
       <ListItem
         secondaryAction={
-          <Stack direction="row" spacing={0.5}>
+          <Stack direction="row" spacing={1}>
             <Tooltip title="Edit track">
               <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
                 <EditIcon fontSize="small" />

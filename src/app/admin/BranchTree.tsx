@@ -3,6 +3,7 @@
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
@@ -72,7 +73,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
 
   return (
     <>
-      <Stack direction="row" alignItems="center">
+      <Stack direction="row" alignItems="center" spacing={1}>
         <ListItemButton onClick={() => toggleBranch(branch.id)} sx={{ flexGrow: 1 }}>
           <ListItemIcon>
             {branch.type === 'folder' ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
@@ -89,6 +90,16 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         <Tooltip title="Edit branch">
           <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
             <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Open in venue">
+          <IconButton
+            size="small"
+            color="primary"
+            href={`/venue/${venueId}/${branch.id}`}
+            target="_blank"
+          >
+            <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Delete branch">
