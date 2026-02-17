@@ -41,7 +41,7 @@ const BranchEditForm = ({ branch, open, onClose, onUpdated }: BranchEditFormProp
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField name="name" label="Name" size="small" defaultValue={branch.name} required autoComplete="off" />
-            <ImagePicker name="image" existingPath={branch.imagePath} />
+            <ImagePicker name="imagePath" existingPath={branch.imagePath} />
           </Stack>
         </DialogContent>
         <DialogActions>

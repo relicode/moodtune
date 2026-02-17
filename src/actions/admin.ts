@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 
 import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
-import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
 import { deleteTrack, removeTrackFromBranch, updateTrack } from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
@@ -15,7 +14,6 @@ import {
   removeUserFromVenue,
   updateVenue,
 } from '$/data/venues'
-import { sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
 import type { ActionResult, SessionPayload } from '$/types'
 
@@ -106,18 +104,9 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
   const parentId = (formData.get('parentId') as string) || null
   const name = formData.get('name') as string
   const type = formData.get('type') as 'folder' | 'playlist'
-  const imageFile = formData.get('image') as File | null
+  const imagePath = (formData.get('imagePath') as string) || null
 
   if (!name || !type) return { success: false, error: 'Name and type are required' }
-
-  let imagePath: string | null = null
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    imagePath = objectName
-  }
 
   const branch = await createBranch(venueId, parentId, name, type, imagePath)
 
@@ -156,18 +145,11 @@ export const updateBranchAction = async (_prev: ActionResult, formData: FormData
 
   const branchId = formData.get('branchId') as string
   const name = formData.get('name') as string
-  const imageFile = formData.get('image') as File | null
+  const imagePath = (formData.get('imagePath') as string) || null
 
   const updates: Partial<{ name: string; imagePath: string | null }> = {}
   if (name) updates.name = name
-
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    updates.imagePath = objectName
-  }
+  if (imagePath) updates.imagePath = imagePath
 
   await updateBranch(branchId, updates)
   revalidatePath('/admin')

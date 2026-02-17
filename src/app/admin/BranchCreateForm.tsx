@@ -68,7 +68,7 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
                 </Select>
               </FormControl>
             </Stack>
-            <ImagePicker name="image" />
+            <ImagePicker name="imagePath" />
           </Stack>
         </DialogContent>
         <DialogActions>

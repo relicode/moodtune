@@ -37,7 +37,7 @@ Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (
 - **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
 - **`src/hooks/`** — Custom React hooks
-- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`)
+- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `sharp.ts`)
 - **`src/proxy.ts`** — Middleware: JWT verification, route guards (`/admin` requires admin role, `/venue/[venueId]` requires venue access), sliding token refresh
 - **`src/types/`** — TypeScript type definitions
 - **`src/theme.ts`** — MUI theme config (CSS variables, light/dark color schemes, Inter font)
@@ -48,6 +48,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 
 - `GET/POST /api/admin/branches/[venueId]` — branch CRUD scoped by venue
 - `GET/POST /api/admin/tracks/[branchId]` — track CRUD scoped by branch
+- `POST /api/admin/upload-image` — image upload with sharp resize to 512x512 WebP (10 MB limit, MIME-type validated)
 - `POST /api/admin/upload-track` — audio file upload with metadata extraction and optional compression
 - `GET/POST/DELETE /api/admin/venue-users/[venueId]` — manage venue user assignments
 - `GET /api/audio/[branchId]/[trackId]` — stream audio from MinIO (supports range requests)
@@ -70,6 +71,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - **MUI 7** with Emotion — the ThemeRegistry is at `$/app/ThemeRegistry`; import MUI components individually (e.g., `import Button from '@mui/material/Button'`)
 - **Prettier** config: no semicolons, single quotes, trailing commas (es5), 120 char width, import sorting via `@ianvs/prettier-plugin-sort-imports`
 - **ESLint** uses flat config with `eslint-config-next` (core-web-vitals + typescript)
+- **Image processing** — `sharp` (listed in `serverExternalPackages`) resizes uploaded branch images to 512x512 WebP via `src/lib/sharp.ts`. The `ImagePicker` component uploads images to `/api/admin/upload-image` and stores the resulting MinIO path in a hidden form field.
 - **Audio processing** — `ffprobe-static` and `ffmpeg-static` provide static binaries (both listed in `serverExternalPackages`). `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both accept a file path — the caller manages the temp file lifecycle. Max upload size: 100 MB.
 - **Data layer** — `src/data/dal.ts` provides typed Redis helpers (UUID generation, hset/hgetall with serialization). Entity modules (`branches.ts`, `tracks.ts`, `venues.ts`, `users.ts`) build on the DAL. Branches form a recursive tree: folders contain child branches, playlists contain tracks.
 - **Docker Compose** provides Redis, MinIO, and an optional app container (`docker compose --profile app up`)
