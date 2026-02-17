@@ -19,7 +19,9 @@
     "db:reset": "npm run db:delete && npm run db:seed",
     "show-redis": "tsx scripts/show-redis.ts",
     "start": "next start",
-    "test": "vitest run"
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",

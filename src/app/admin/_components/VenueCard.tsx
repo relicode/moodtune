@@ -7,7 +7,6 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import Accordion from '@mui/material/Accordion'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
-import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
 import Tab from '@mui/material/Tab'
@@ -72,9 +71,11 @@ const VenueCard = ({ venue }: VenueCardProps) => {
             </Tooltip>
           </Stack>
         </Stack>
-        <Divider />
-        {tab === 0 && <BranchTree venueId={venue.id} key={branchRefreshKey} />}
-        {tab === 1 && <UserManager venueId={venue.id} />}
+
+        <Stack>
+          {tab === 0 && <BranchTree venueId={venue.id} key={branchRefreshKey} />}
+          {tab === 1 && <UserManager venueId={venue.id} />}
+        </Stack>
       </AccordionDetails>
       <BranchCreateForm
         venueId={venue.id}

@@ -4,19 +4,15 @@ import { getBranch, getChildBranches } from '$/data/branches'
 import { getRootBranchIds } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
 
-export const GET = async (request: Request) => {
+export const GET = async (request: Request, { params }: { params: Promise<{ venueId: string }> }) => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { venueId } = await params
   const { searchParams } = new URL(request.url)
-  const venueId = searchParams.get('venueId')
   const parentId = searchParams.get('parentId')
-
-  if (!venueId) {
-    return NextResponse.json({ error: 'venueId required' }, { status: 400 })
-  }
 
   let branches
   if (parentId) {

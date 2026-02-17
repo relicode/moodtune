@@ -79,7 +79,7 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   const loadTracks = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/tracks?branchId=${branchId}`)
+      const res = await fetch(`/api/admin/tracks/${branchId}`)
       const data = await res.json()
       setTracks(data.tracks || [])
     } catch {
@@ -90,8 +90,26 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   }
 
   useEffect(() => {
-    loadTracks()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadTracks is stable via React Compiler; including it would cause an infinite loop
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/admin/tracks/${branchId}`)
+        if (cancelled) return
+        const data = await res.json()
+        setTracks(data.tracks || [])
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
   }, [branchId, refreshKey])
 
   if (loading) {

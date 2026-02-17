@@ -4,17 +4,13 @@ import { getUserById } from '$/data/users'
 import { getVenueUserIds } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
 
-export const GET = async (request: Request) => {
+export const GET = async (_request: Request, { params }: { params: Promise<{ venueId: string }> }) => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const venueId = searchParams.get('venueId')
-  if (!venueId) {
-    return NextResponse.json({ error: 'venueId required' }, { status: 400 })
-  }
+  const { venueId } = await params
 
   const userIds = await getVenueUserIds(venueId)
   const users = await Promise.all(userIds.map(getUserById))

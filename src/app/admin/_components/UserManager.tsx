@@ -8,9 +8,9 @@ import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
 import Snackbar from '@mui/material/Snackbar'
-import Tooltip from '@mui/material/Tooltip'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useConfirm } from 'material-ui-confirm'
 import { useActionState, useEffect, useRef, useState } from 'react'
@@ -32,7 +32,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const loadUsers = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/venue-users?venueId=${venueId}`)
+      const res = await fetch(`/api/admin/venue-users/${venueId}`)
       const data = await res.json()
       setUsers(data.users || [])
     } catch {

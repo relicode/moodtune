@@ -30,9 +30,12 @@ const ImagePicker = ({ name, existingPath }: ImagePickerProps) => {
     }
   }, [existingPath])
 
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview)
-  }, [preview])
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview)
+    },
+    [preview]
+  )
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
