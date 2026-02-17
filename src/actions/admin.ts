@@ -15,19 +15,21 @@ import {
   removeUserFromVenue,
 } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
-import type { ActionResult } from '$/types'
+import type { ActionResult, SessionPayload } from '$/types'
 
-const requireAdmin = async (): Promise<ActionResult | null> => {
+type AdminCheck = { error: ActionResult } | { session: SessionPayload }
+
+const requireAdmin = async (): Promise<AdminCheck> => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== 'admin') {
-    return { success: false, error: 'Unauthorized' }
+    return { error: { success: false, error: 'Unauthorized' } }
   }
-  return null
+  return { session }
 }
 
 export const createVenueAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   const name = formData.get('name') as string
   const description = (formData.get('description') as string) || ''
@@ -40,8 +42,8 @@ export const createVenueAction = async (_prev: ActionResult, formData: FormData)
 }
 
 export const deleteVenueAction = async (venueId: string): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   await deleteVenue(venueId)
   revalidatePath('/admin')
@@ -49,8 +51,8 @@ export const deleteVenueAction = async (venueId: string): Promise<ActionResult> 
 }
 
 export const createVenueUserAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   const venueId = formData.get('venueId') as string
   const username = formData.get('username') as string
@@ -58,15 +60,21 @@ export const createVenueUserAction = async (_prev: ActionResult, formData: FormD
 
   if (!username || !password) return { success: false, error: 'Username and password are required' }
 
-  const user = await createUser(username, password, 'user')
+  let user
+  try {
+    user = await createUser(username, password, 'user')
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to create user' }
+  }
+
   await addUserToVenue(venueId, user.id)
   revalidatePath('/admin')
   return { success: true }
 }
 
 export const deleteVenueUserAction = async (venueId: string, userId: string): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   await removeUserFromVenue(venueId, userId)
   await deleteUser(userId)
@@ -75,8 +83,8 @@ export const deleteVenueUserAction = async (venueId: string, userId: string): Pr
 }
 
 export const createBranchAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   const venueId = formData.get('venueId') as string
   const parentId = (formData.get('parentId') as string) || null
@@ -89,7 +97,7 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
   let imagePath: string | null = null
   if (imageFile && imageFile.size > 0) {
     const ext = imageFile.name.split('.').pop()
-    const objectName = `${crypto.randomUUID()}.${ext}`
+    const objectName = `${auth.session.username}/${crypto.randomUUID()}.${ext}`
     const buffer = Buffer.from(await imageFile.arrayBuffer())
     await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
     imagePath = objectName
@@ -112,8 +120,8 @@ export const deleteBranchAction = async (
   branchId: string,
   parentId: string | null
 ): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   if (parentId) {
     await removeChildBranch(parentId, branchId)
@@ -127,8 +135,8 @@ export const deleteBranchAction = async (
 }
 
 export const updateBranchAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   const branchId = formData.get('branchId') as string
   const name = formData.get('name') as string
@@ -139,7 +147,7 @@ export const updateBranchAction = async (_prev: ActionResult, formData: FormData
 
   if (imageFile && imageFile.size > 0) {
     const ext = imageFile.name.split('.').pop()
-    const objectName = `${crypto.randomUUID()}.${ext}`
+    const objectName = `${auth.session.username}/${crypto.randomUUID()}.${ext}`
     const buffer = Buffer.from(await imageFile.arrayBuffer())
     await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
     updates.imagePath = objectName
@@ -151,8 +159,8 @@ export const updateBranchAction = async (_prev: ActionResult, formData: FormData
 }
 
 export const removeTrackAction = async (branchId: string, trackId: string): Promise<ActionResult> => {
-  const authError = await requireAdmin()
-  if (authError) return authError
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
 
   await removeTrackFromBranch(branchId, trackId)
   await deleteTrack(trackId)

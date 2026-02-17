@@ -35,7 +35,7 @@ export const POST = async (request: Request) => {
   }
 
   const ext = sanitizeExtension(audioFile.name)
-  const fileName = `${crypto.randomUUID()}.${ext}`
+  const fileName = `${session.username}/${crypto.randomUUID()}.${ext}`
   const buffer = Buffer.from(await audioFile.arrayBuffer())
 
   let meta: AudioMetadata
