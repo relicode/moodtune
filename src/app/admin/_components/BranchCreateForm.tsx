@@ -1,5 +1,7 @@
 'use client'
 
+import FolderIcon from '@mui/icons-material/Folder'
+import QueueMusicIcon from '@mui/icons-material/QueueMusic'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -50,14 +52,22 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
         <DialogTitle>{label}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField name="name" label="Name" size="small" required autoComplete="off" />
-            <FormControl size="small">
-              <InputLabel>Type</InputLabel>
-              <Select name="type" label="Type" defaultValue="folder">
-                <MenuItem value="folder">Folder</MenuItem>
-                <MenuItem value="playlist">Playlist</MenuItem>
-              </Select>
-            </FormControl>
+            <Stack direction="row" spacing={2}>
+              <TextField name="name" label="Name" size="small" required autoComplete="off" sx={{ flex: 5 }} />
+              <FormControl size="small" sx={{ flex: 3 }}>
+                <InputLabel>Type</InputLabel>
+                <Select name="type" label="Type" defaultValue="folder">
+                  <MenuItem value="folder">
+                    <FolderIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                    Folder
+                  </MenuItem>
+                  <MenuItem value="playlist">
+                    <QueueMusicIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                    Playlist
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
             <ImagePicker name="image" />
           </Stack>
         </DialogContent>

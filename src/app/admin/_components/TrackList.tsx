@@ -38,11 +38,8 @@ const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
   const confirm = useConfirm()
 
   const handleDelete = async () => {
-    try {
-      await confirm({ description: `Remove track "${track.title}"?` })
-    } catch {
-      return
-    }
+    const { confirmed } = await confirm({ description: `Remove track "${track.title}"?` })
+    if (!confirmed) return
     await removeTrackAction(branchId, track.id)
     onChanged()
   }

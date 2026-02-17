@@ -36,11 +36,8 @@ const VenueCard = ({ venue }: VenueCardProps) => {
   const confirm = useConfirm()
 
   const handleDelete = async () => {
-    try {
-      await confirm({ description: `Delete venue "${venue.name}"? This cannot be undone.` })
-    } catch {
-      return
-    }
+    const { confirmed } = await confirm({ description: `Delete venue "${venue.name}"? This cannot be undone.` })
+    if (!confirmed) return
     await deleteVenueAction(venue.id)
   }
 

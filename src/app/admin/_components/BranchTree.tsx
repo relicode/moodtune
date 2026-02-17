@@ -46,11 +46,8 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    try {
-      await confirm({ description: `Delete branch "${branch.name}"?` })
-    } catch {
-      return
-    }
+    const { confirmed } = await confirm({ description: `Delete branch "${branch.name}"?` })
+    if (!confirmed) return
     await deleteBranchAction(venueId, branch.id, branch.parentId)
     onChanged()
   }

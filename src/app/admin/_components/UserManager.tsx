@@ -63,11 +63,8 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   )
 
   const handleDeleteUser = async (userId: string, username: string) => {
-    try {
-      await confirm({ description: `Remove user "${username}"?` })
-    } catch {
-      return
-    }
+    const { confirmed } = await confirm({ description: `Remove user "${username}"?` })
+    if (!confirmed) return
     await deleteVenueUserAction(venueId, userId)
     loadUsers()
   }
