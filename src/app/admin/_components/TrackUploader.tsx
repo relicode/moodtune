@@ -2,6 +2,7 @@
 
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import { useRef, useState } from 'react'
@@ -11,23 +12,22 @@ type TrackUploaderProps = {
   onUploaded: () => void
 }
 
+type SnackState = {
+  open: boolean
+  severity: 'success' | 'error'
+  message: string
+}
+
 const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
   const formRef = useRef<HTMLFormElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [snack, setSnack] = useState<SnackState>({ open: false, severity: 'success', message: '' })
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setError(null)
 
     const formData = new FormData(e.currentTarget)
     formData.set('branchId', branchId)
-
-    const audioFile = formData.get('audio') as File | null
-    if (audioFile && audioFile.size > 0) {
-      const duration = await getAudioDuration(audioFile)
-      formData.set('duration', String(duration))
-    }
 
     setUploading(true)
     try {
@@ -35,24 +35,34 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
       const data = await res.json()
       if (data.success) {
         formRef.current?.reset()
+        setSnack({ open: true, severity: 'success', message: 'Track uploaded' })
         onUploaded()
       } else {
-        setError(data.error || 'Upload failed')
+        setSnack({ open: true, severity: 'error', message: data.error || 'Upload failed' })
       }
     } catch {
-      setError('Upload failed')
+      setSnack({ open: true, severity: 'error', message: 'Upload failed' })
     } finally {
       setUploading(false)
     }
   }
 
+  const handleSnackClose = () => {
+    setSnack((prev) => ({ ...prev, open: false }))
+  }
+
   return (
     <>
-      {error && (
-        <Alert severity="error" sx={{ mt: 1 }}>
-          {error}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={5000}
+        onClose={handleSnackClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} variant="filled" onClose={handleSnackClose}>
+          {snack.message}
         </Alert>
-      )}
+      </Snackbar>
       <Stack
         component="form"
         ref={formRef}
@@ -62,7 +72,7 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
         sx={{ mt: 2 }}
         alignItems="center"
       >
-        <TextField name="title" label="Title" size="small" required autoComplete="off" />
+        <TextField name="title" label="Title" size="small" autoComplete="off" />
         <TextField name="artist" label="Artist" size="small" autoComplete="off" />
         <Button component="label" variant="text" size="small">
           Audio
@@ -75,19 +85,5 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
     </>
   )
 }
-
-const getAudioDuration = (file: File): Promise<number> =>
-  new Promise((resolve) => {
-    const audio = new Audio()
-    audio.addEventListener('loadedmetadata', () => {
-      resolve(audio.duration)
-      URL.revokeObjectURL(audio.src)
-    })
-    audio.addEventListener('error', () => {
-      resolve(0)
-      URL.revokeObjectURL(audio.src)
-    })
-    audio.src = URL.createObjectURL(file)
-  })
 
 export default TrackUploader

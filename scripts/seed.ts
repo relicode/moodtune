@@ -1,3 +1,4 @@
+#!/usr/bin/env -S tsx
 import { hash } from 'bcryptjs'
 import Redis from 'ioredis'
 import * as Minio from 'minio'

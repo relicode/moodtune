@@ -21,8 +21,12 @@ export const createTrack = async (
   }
 
   await redis.hset(`track:${id}`, {
-    ...track,
-    duration: String(duration),
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    fileName: track.fileName,
+    duration: String(track.duration),
+    createdAt: track.createdAt,
   })
 
   return track
@@ -31,9 +35,10 @@ export const createTrack = async (
 export const getTrack = async (id: string): Promise<Track | null> => {
   const data = await redis.hgetall(`track:${id}`)
   if (!data.id) return null
+
   return {
     ...data,
-    duration: parseFloat(data.duration),
+    duration: parseFloat(data.duration) || 0,
   } as unknown as Track
 }
 
