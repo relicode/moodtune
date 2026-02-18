@@ -1,18 +1,25 @@
-import { unlink, writeFile } from 'fs/promises'
-import { tmpdir } from 'os'
+import { createWriteStream } from 'fs'
+import { unlink } from 'fs/promises'
 import { join } from 'path'
+import { Writable } from 'stream'
 import { NextResponse } from 'next/server'
 
-import { AUDIO_BUCKET, removeFile, uploadFile } from '$/data/minio'
+import { AUDIO_BUCKET, removeFile, uploadFileFromPath } from '$/data/minio'
 import { addRandomTrackToBranch, addTrackToBranch, createTrack } from '$/data/tracks'
 import { compressToM4a, TARGET_BYTES_PER_SEC } from '$/lib/ffmpeg'
 import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
+import { TEMP_DIR } from '$/lib/paths'
 import { getSessionFromCookie } from '$/lib/session'
 import { UserRole } from '$/types'
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_FILE_SIZE = 2_147_483_648 // 2048 MB
+
+const streamToFile = async (stream: ReadableStream<Uint8Array>, filePath: string) => {
+  const writable = Writable.toWeb(createWriteStream(filePath, { mode: 0o600 }))
+  await stream.pipeTo(writable)
+}
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
@@ -33,15 +40,16 @@ export const POST = async (request: Request) => {
   }
 
   if (audioFile.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: 'File size exceeds 100 MB limit' }, { status: 413 })
+    return NextResponse.json({ error: 'File size exceeds 2048 MB limit' }, { status: 413 })
   }
 
   const ext = sanitizeExtension(audioFile.name)
   const originalFileName = `audio/${crypto.randomUUID()}.${ext}`
-  const buffer = Buffer.from(await audioFile.arrayBuffer())
 
-  const tmpFile = join(tmpdir(), `moodtune-${crypto.randomUUID()}`)
-  await writeFile(tmpFile, buffer, { mode: 0o600 })
+  const tmpFile = join(TEMP_DIR, `moodtune-${crypto.randomUUID()}`)
+  await streamToFile(audioFile.stream(), tmpFile)
+
+  let compressedFile: string | null = null
 
   try {
     let meta: AudioMetadata
@@ -60,13 +68,24 @@ export const POST = async (request: Request) => {
 
     // Compress to M4A when at least 20% size reduction is expected
     const estimatedM4aSize = TARGET_BYTES_PER_SEC * meta.duration
-    const shouldCompress = buffer.length > estimatedM4aSize * 1.2
+    const shouldCompress = audioFile.size > estimatedM4aSize * 1.2
 
-    const uploadBuffer = shouldCompress ? await compressToM4a(tmpFile) : buffer
-    const uploadFileName = shouldCompress ? `audio/${crypto.randomUUID()}.m4a` : originalFileName
-    const contentType = shouldCompress ? 'audio/mp4' : audioFile.type
+    let uploadFilePath: string
+    let uploadFileName: string
+    let contentType: string
 
-    await uploadFile(AUDIO_BUCKET, uploadFileName, uploadBuffer, contentType)
+    if (shouldCompress) {
+      compressedFile = await compressToM4a(tmpFile)
+      uploadFilePath = compressedFile
+      uploadFileName = `audio/${crypto.randomUUID()}.m4a`
+      contentType = 'audio/mp4'
+    } else {
+      uploadFilePath = tmpFile
+      uploadFileName = originalFileName
+      contentType = audioFile.type
+    }
+
+    await uploadFileFromPath(AUDIO_BUCKET, uploadFileName, uploadFilePath, contentType)
 
     try {
       const track = await createTrack(title, artist, uploadFileName, meta.duration)
@@ -83,5 +102,6 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ success: true })
   } finally {
     await unlink(tmpFile).catch(() => {})
+    if (compressedFile) await unlink(compressedFile).catch(() => {})
   }
 }

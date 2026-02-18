@@ -54,12 +54,20 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
   const [randomRefreshKey, setRandomRefreshKey] = useState(0)
   const [playlistName, setPlaylistName] = useState(branch.name)
   const [nameSaving, setNameSaving] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [localPreview, setLocalPreview] = useState<string | null>(null)
+  const imageUrl = localPreview ?? (branch.imagePath ? getImageUrl(branch.imagePath) : null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const [random, setRandom] = useState(branch.random ?? 0)
   const [ui, setUi] = useState<PlaylistUiOption[]>(branch.ui ?? [])
   const [mainDuration, setMainDuration] = useState(0)
   const [randomDuration, setRandomDuration] = useState(0)
+
+  useEffect(
+    () => () => {
+      if (localPreview) URL.revokeObjectURL(localPreview)
+    },
+    [localPreview]
+  )
 
   const toggleUiOption = (option: PlaylistUiOption, checked: boolean) => {
     const next = checked ? [...ui, option] : ui.filter((o) => o !== option)
@@ -67,23 +75,11 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
     updatePlaylistSettingsAction(branch.id, { ui: next })
   }
 
-  useEffect(() => {
-    if (!open || !branch.imagePath) return
-    let cancelled = false
-    const load = async () => {
-      const url = await getImageUrl(branch.imagePath!)
-      if (!cancelled) setImageUrl(url)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [open, branch.imagePath])
-
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setImageUrl(URL.createObjectURL(file))
+    if (localPreview) URL.revokeObjectURL(localPreview)
+    setLocalPreview(URL.createObjectURL(file))
     const formData = new FormData()
     formData.set('image', file)
     await updateBranchImageAction(branch.id, formData)

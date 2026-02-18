@@ -72,13 +72,11 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
 
   if (branch.type === BranchType.FOLDER) {
     const children = await getChildBranches(branchId)
-    const branchItems = await Promise.all(
-      children.map(async (child) => ({
-        id: child.id,
-        name: child.name,
-        imageUrl: child.imagePath ? await getImageUrl(child.imagePath) : null,
-      }))
-    )
+    const branchItems = children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      imageUrl: child.imagePath ? getImageUrl(child.imagePath) : null,
+    }))
     return (
       <Stack spacing={2}>
         {header}

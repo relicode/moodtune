@@ -69,6 +69,7 @@ src/
     api/                REST API routes
       admin/            Admin CRUD (branches, tracks, upload-track, venue-users)
       audio/            Audio streaming with range-request support
+      image/            Image proxy (streams from MinIO, auth required)
       playlist/         Playlist tracks with role-based filtering
     venue/              Venue user views
       [venueId]/        Venue root (branch grid)
@@ -86,7 +87,7 @@ src/
 
 - **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
 - **Branches** form a recursive tree: folders contain child branches, playlists contain tracks.
-- **Audio uploads** are probed with `ffprobe-static` for metadata and compressed to 192kbps AAC/M4A via `ffmpeg-static` when a meaningful size reduction (>20%) is expected. Max upload size is 100 MB.
+- **Audio uploads** are streamed to disk and probed with `ffprobe-static` for metadata, then compressed to 192kbps AAC/M4A via `ffmpeg-static` when a meaningful size reduction (>20%) is expected. Max upload size is 2048 MB. Temp directory is configurable via `UPLOAD_TMP_DIR` (defaults to `/var/tmp`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
 - The app uses `output: 'standalone'` for containerized deployment.
 

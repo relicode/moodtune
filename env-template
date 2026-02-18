@@ -13,6 +13,8 @@ MINIO_BUCKET=moodtune
 
 JWT_SECRET=change-me-to-a-random-secret
 
+# UPLOAD_TMP_DIR=/var/tmp
+
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin
 

@@ -33,11 +33,11 @@ Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (
 - **`src/app/`** — Next.js App Router pages and layouts
   - **`src/app/api/`** — REST API routes (admin CRUD, audio streaming, playlist)
   - **`src/app/admin/`** — Admin dashboard page, layout, and components (dialog-based CRUD for venues, branches, tracks, users)
-- **`src/actions/`** — Server Actions (`admin.ts`, `auth.ts`, `branches.ts`, `media.ts`)
+- **`src/actions/`** — Server Actions (`admin.ts`, `auth.ts`, `branches.ts`) and utilities (`media.ts` — synchronous image proxy URL builder)
 - **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
 - **`src/hooks/`** — Custom React hooks (`useSnackbar` — shared snackbar context via `SnackbarProvider` in ThemeRegistry)
-- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `utils.ts`)
+- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `paths.ts`, `stream.ts`, `utils.ts`)
 - **`src/proxy.ts`** — Middleware: JWT verification, route guards (`/admin` requires admin role, `/venue/[venueId]` requires venue access), sliding token refresh
 - **`src/types/`** — TypeScript type definitions
 - **`src/theme.ts`** — MUI theme config (CSS variables, light/dark color schemes, Inter font)
@@ -51,6 +51,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - `POST /api/admin/upload-track` — audio file upload with metadata extraction and optional compression; `pool=random` field stores in random pool
 - `GET/POST/DELETE /api/admin/venue-users/[venueId]` — manage venue user assignments
 - `GET /api/audio/[branchId]/[trackId]` — stream audio from MinIO (supports range requests)
+- `GET /api/image/[...path]` — proxy images from MinIO through the server (auth required, path-traversal protected)
 - `GET /api/playlist/[playlistId]` — playlist tracks with role-based filtering
 
 ## Auth and Sessions
@@ -70,7 +71,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - **MUI 7** with Emotion — the ThemeRegistry is at `$/app/ThemeRegistry`; import MUI components individually (e.g., `import Button from '@mui/material/Button'`)
 - **Prettier** config: no semicolons, single quotes, trailing commas (es5), 120 char width, import sorting via `@ianvs/prettier-plugin-sort-imports`
 - **ESLint** uses flat config with `eslint-config-next` (core-web-vitals + typescript)
-- **Audio processing** — `ffprobe-static` and `ffmpeg-static` provide static binaries (both listed in `serverExternalPackages`). `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both accept a file path — the caller manages the temp file lifecycle. Max upload size: 100 MB.
+- **Audio processing** — `ffprobe-static` and `ffmpeg-static` provide static binaries (both listed in `serverExternalPackages`). `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both accept a file path — the caller manages the temp file lifecycle. Uploads stream to disk (`UPLOAD_TMP_DIR` env var, defaults to `/var/tmp`). Max upload size: 2048 MB.
 - **Data layer** — `src/data/dal.ts` provides typed Redis helpers (UUID generation, hset/hgetall with serialization). Entity modules (`branches.ts`, `tracks.ts`, `venues.ts`, `users.ts`) build on the DAL. Branches form a recursive tree: folders contain child branches, playlists contain tracks. Playlists also have a separate random-track pool (`branch:<id>:randomTracks`) and a `random` probability (0-100) controlling how many random tracks get injected at playback.
 - **Docker Compose** provides Redis, MinIO, and an optional app container (`docker compose --profile app up`)
 

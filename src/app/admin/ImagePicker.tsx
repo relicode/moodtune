@@ -3,7 +3,6 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
-import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
 
 import { getImageUrl } from '$/actions/media'
@@ -15,20 +14,7 @@ type ImagePickerProps = {
 
 const ImagePicker = ({ name, existingPath }: ImagePickerProps) => {
   const [preview, setPreview] = useState<string | null>(null)
-  const [existingUrl, setExistingUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!existingPath) return
-    let cancelled = false
-    const load = async () => {
-      const url = await getImageUrl(existingPath)
-      if (!cancelled) setExistingUrl(url)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [existingPath])
+  const existingUrl = existingPath ? getImageUrl(existingPath) : null
 
   useEffect(
     () => () => {
@@ -61,11 +47,6 @@ const ImagePicker = ({ name, existingPath }: ImagePickerProps) => {
           alt="Branch image"
           sx={{ maxWidth: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 1 }}
         />
-      )}
-      {!displayUrl && existingPath && (
-        <Typography variant="caption" color="text.secondary">
-          Loading image...
-        </Typography>
       )}
     </Stack>
   )
