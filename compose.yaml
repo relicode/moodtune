@@ -1,6 +1,5 @@
 services:
   app:
-    user: 1000:100
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,7 +12,6 @@ services:
       - '3000:3000'
 
   redis:
-    user: 1000:100
     image: redis:8-alpine
     restart: unless-stopped
     ports:
@@ -23,7 +21,6 @@ services:
     command: redis-server --appendonly yes
 
   minio:
-    user: 1000:100
     image: minio/minio
     restart: unless-stopped
     ports:
