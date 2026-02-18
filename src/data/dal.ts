@@ -4,7 +4,7 @@ import redis from './redis'
 
 // --- Schema types ---
 
-type FieldType = 'number' | 'nullable'
+type FieldType = 'number' | 'nullable' | 'boolean' | 'json'
 
 type Schema = Record<string, FieldType>
 
@@ -17,6 +17,10 @@ const serialize = (fields: Record<string, unknown>, schema: Schema): Record<stri
       result[key] = (value as string) ?? ''
     } else if (schema[key] === 'number') {
       result[key] = String(value)
+    } else if (schema[key] === 'boolean') {
+      result[key] = value ? 'true' : 'false'
+    } else if (schema[key] === 'json') {
+      result[key] = JSON.stringify(value)
     } else {
       result[key] = value as string
     }
@@ -28,9 +32,17 @@ const deserialize = <T>(data: Record<string, string>, schema: Schema): T => {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(data)) {
     if (schema[key] === 'nullable') {
-      result[key] = value || null
+      result[key] = value || undefined
     } else if (schema[key] === 'number') {
       result[key] = parseFloat(value) || 0
+    } else if (schema[key] === 'boolean') {
+      result[key] = value === 'true'
+    } else if (schema[key] === 'json') {
+      try {
+        result[key] = JSON.parse(value)
+      } catch {
+        result[key] = []
+      }
     } else {
       result[key] = value
     }

@@ -1,13 +1,11 @@
 'use client'
 
 import DeleteIcon from '@mui/icons-material/Delete'
-import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
-import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
@@ -16,6 +14,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useActionState, useEffect, useRef, useState } from 'react'
 
 import { createVenueUserAction, deleteVenueUserAction } from '$/actions/admin'
+import { useSnackbar } from '$/hooks/useSnackbar'
 import type { ActionResult, User } from '$/types'
 
 type UserManagerProps = {
@@ -27,7 +26,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const confirm = useConfirm()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [snackError, setSnackError] = useState<string | null>(null)
+  const { showSnackbar } = useSnackbar()
 
   const loadUsers = async () => {
     try {
@@ -54,7 +53,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
         formRef.current?.reset()
         loadUsers()
       } else if (result.error) {
-        setSnackError(result.error)
+        showSnackbar(result.error, 'error')
       }
       return result
     },
@@ -77,17 +76,6 @@ const UserManager = ({ venueId }: UserManagerProps) => {
           Add User
         </Button>
       </Stack>
-
-      <Snackbar
-        open={!!snackError}
-        autoHideDuration={5000}
-        onClose={() => setSnackError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="error" variant="filled" onClose={() => setSnackError(null)}>
-          {snackError}
-        </Alert>
-      </Snackbar>
 
       {loading ? (
         <Typography variant="body2" color="text.secondary">

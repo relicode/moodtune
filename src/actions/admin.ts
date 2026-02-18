@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
 import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
-import { deleteTrack, removeTrackFromBranch, updateTrack } from '$/data/tracks'
+import { deleteTrack, removeRandomTrackFromBranch, removeTrackFromBranch, updateTrack } from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
   addRootBranch,
@@ -17,13 +17,14 @@ import {
 } from '$/data/venues'
 import { sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
-import type { ActionResult, SessionPayload } from '$/types'
+import { BranchType, UserRole } from '$/types'
+import type { ActionResult, PlaylistUiOption, SessionPayload } from '$/types'
 
 type AdminCheck = { error: ActionResult } | { session: SessionPayload }
 
 const requireAdmin = async (): Promise<AdminCheck> => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return { error: { success: false, error: 'Unauthorized' } }
   }
   return { session }
@@ -78,7 +79,7 @@ export const createVenueUserAction = async (_prev: ActionResult, formData: FormD
 
   let user
   try {
-    user = await createUser(username, password, 'user')
+    user = await createUser(username, password, UserRole.USER)
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to create user' }
   }
@@ -103,14 +104,14 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
   if ('error' in auth) return auth.error
 
   const venueId = formData.get('venueId') as string
-  const parentId = (formData.get('parentId') as string) || null
+  const parentId = (formData.get('parentId') as string) || undefined
   const name = formData.get('name') as string
-  const type = formData.get('type') as 'folder' | 'playlist'
+  const type = formData.get('type') as BranchType
   const imageFile = formData.get('image') as File | null
 
   if (!name || !type) return { success: false, error: 'Name and type are required' }
 
-  let imagePath: string | null = null
+  let imagePath: string | undefined
   if (imageFile && imageFile.size > 0) {
     const ext = sanitizeExtension(imageFile.name)
     const objectName = `image/${crypto.randomUUID()}.${ext}`
@@ -134,7 +135,7 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
 export const deleteBranchAction = async (
   venueId: string,
   branchId: string,
-  parentId: string | null
+  parentId?: string
 ): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error
@@ -146,30 +147,6 @@ export const deleteBranchAction = async (
   }
 
   await deleteBranchRecursive(branchId)
-  revalidatePath('/admin')
-  return { success: true }
-}
-
-export const updateBranchAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const auth = await requireAdmin()
-  if ('error' in auth) return auth.error
-
-  const branchId = formData.get('branchId') as string
-  const name = formData.get('name') as string
-  const imageFile = formData.get('image') as File | null
-
-  const updates: Partial<{ name: string; imagePath: string | null }> = {}
-  if (name) updates.name = name
-
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    updates.imagePath = objectName
-  }
-
-  await updateBranch(branchId, updates)
   revalidatePath('/admin')
   return { success: true }
 }
@@ -190,12 +167,63 @@ export const updateTrackAction = async (_prev: ActionResult, formData: FormData)
   return { success: true }
 }
 
-export const removeTrackAction = async (branchId: string, trackId: string): Promise<ActionResult> => {
+export const removeTrackAction = async (
+  branchId: string,
+  trackId: string,
+  pool: 'main' | 'random' = 'main'
+): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error
 
-  await removeTrackFromBranch(branchId, trackId)
+  if (pool === 'random') {
+    await removeRandomTrackFromBranch(branchId, trackId)
+  } else {
+    await removeTrackFromBranch(branchId, trackId)
+  }
   await deleteTrack(trackId)
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const setBranchRandomAction = async (branchId: string, random: number): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  if (!Number.isFinite(random) || random < 0 || random > 100) {
+    return { success: false, error: 'Random must be between 0 and 100' }
+  }
+
+  await updateBranch(branchId, { random: Math.round(random) })
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const updatePlaylistSettingsAction = async (
+  branchId: string,
+  settings: Partial<{ name: string; ui: PlaylistUiOption[] }>
+): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  await updateBranch(branchId, settings)
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const updateBranchImageAction = async (branchId: string, formData: FormData): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  const imageFile = formData.get('image') as File | null
+  if (!imageFile || imageFile.size === 0) {
+    return { success: false, error: 'No image provided' }
+  }
+
+  const ext = sanitizeExtension(imageFile.name)
+  const objectName = `image/${crypto.randomUUID()}.${ext}`
+  const buffer = Buffer.from(await imageFile.arrayBuffer())
+  await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
+  await updateBranch(branchId, { imagePath: objectName })
   revalidatePath('/admin')
   return { success: true }
 }

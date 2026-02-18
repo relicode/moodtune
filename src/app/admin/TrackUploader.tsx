@@ -3,7 +3,6 @@
 import Add from '@mui/icons-material/Add'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
-import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -12,18 +11,19 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import LinearProgress from '@mui/material/LinearProgress'
-import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useRef, useState } from 'react'
 
+import { useSnackbar } from '$/hooks/useSnackbar'
 import { parseFilename } from '$/lib/filename'
 
 type TrackUploaderProps = {
   branchId: string
   onUploaded: () => void
+  pool?: 'main' | 'random'
 }
 
 type FileEntry = {
@@ -34,17 +34,11 @@ type FileEntry = {
   error?: string
 }
 
-type SnackState = {
-  open: boolean
-  severity: 'success' | 'error'
-  message: string
-}
-
-const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
+const TrackUploader = ({ branchId, onUploaded, pool = 'main' }: TrackUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
   const [uploading, setUploading] = useState(false)
-  const [snack, setSnack] = useState<SnackState>({ open: false, severity: 'success', message: '' })
+  const { showSnackbar } = useSnackbar()
 
   const dialogOpen = files.length > 0
 
@@ -93,6 +87,7 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
       formData.set('title', entry.title)
       formData.set('artist', entry.artist)
       formData.set('audio', entry.file)
+      if (pool === 'random') formData.set('pool', 'random')
 
       try {
         const res = await fetch('/api/admin/upload-track', { method: 'POST', body: formData })
@@ -127,19 +122,11 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
     const parts: string[] = []
     if (succeeded > 0) parts.push(`${succeeded} uploaded`)
     if (failed > 0) parts.push(`${failed} failed`)
-    setSnack({
-      open: true,
-      severity: failed > 0 ? 'error' : 'success',
-      message: parts.join(', '),
-    })
+    showSnackbar(parts.join(', '), failed > 0 ? 'error' : 'success')
   }
 
   const handleClose = () => {
     if (!uploading) setFiles([])
-  }
-
-  const handleSnackClose = () => {
-    setSnack((prev) => ({ ...prev, open: false }))
   }
 
   const doneCount = files.filter((f) => f.status === 'done' || f.status === 'error').length
@@ -148,7 +135,7 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
   return (
     <>
       <input ref={inputRef} type="file" accept="audio/*" multiple hidden onChange={handleFilesSelected} />
-      <Button variant="outlined" size="small" startIcon={<Add />} onClick={handleAddClick} sx={{ mt: 2 }}>
+      <Button variant="outlined" size="small" startIcon={<Add />} onClick={handleAddClick}>
         Add
       </Button>
       <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -213,16 +200,6 @@ const TrackUploader = ({ branchId, onUploaded }: TrackUploaderProps) => {
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={5000}
-        onClose={handleSnackClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={snack.severity} variant="filled" onClose={handleSnackClose}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
     </>
   )
 }

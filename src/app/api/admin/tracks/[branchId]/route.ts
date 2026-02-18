@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server'
 
-import { getPlaylistTracks } from '$/data/tracks'
+import { getPlaylistTracks, getRandomTracks } from '$/data/tracks'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
-export const GET = async (_request: Request, { params }: { params: Promise<{ branchId: string }> }) => {
+export const GET = async (request: Request, { params }: { params: Promise<{ branchId: string }> }) => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { branchId } = await params
+  const { searchParams } = new URL(request.url)
+  const pool = searchParams.get('pool')
 
-  const tracks = await getPlaylistTracks(branchId)
+  const tracks = pool === 'random' ? await getRandomTracks(branchId) : await getPlaylistTracks(branchId)
   return NextResponse.json({ tracks })
 }

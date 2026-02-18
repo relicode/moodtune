@@ -13,34 +13,32 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useState } from 'react'
 
 import { removeTrackAction } from '$/actions/admin'
+import { formatTime } from '$/lib/utils'
 import type { Track } from '$/types'
 import TrackEditForm from './TrackEditForm'
 
 type TrackListProps = {
   branchId: string
   refreshKey: number
-}
-
-const formatDuration = (seconds: number) => {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
+  pool?: 'main' | 'random'
+  onDurationChange?: (totalSeconds: number) => void
 }
 
 type TrackItemProps = {
   branchId: string
   track: Track
+  pool: 'main' | 'random'
   onChanged: () => void
 }
 
-const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
+const TrackItem = ({ branchId, track, pool, onChanged }: TrackItemProps) => {
   const [editOpen, setEditOpen] = useState(false)
   const confirm = useConfirm()
 
   const handleDelete = async () => {
     const { confirmed } = await confirm({ description: `Remove track "${track.title}"?` })
     if (!confirmed) return
-    await removeTrackAction(branchId, track.id)
+    await removeTrackAction(branchId, track.id, pool)
     onChanged()
   }
 
@@ -64,7 +62,7 @@ const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
       >
         <ListItemText
           primary={track.title}
-          secondary={`${track.artist || 'Unknown'} • ${formatDuration(track.duration)}`}
+          secondary={`${track.artist || 'Unknown'} • ${formatTime(track.duration)}`}
         />
       </ListItem>
       <TrackEditForm track={track} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
@@ -72,15 +70,18 @@ const TrackItem = ({ branchId, track, onChanged }: TrackItemProps) => {
   )
 }
 
-const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
+const TrackList = ({ branchId, refreshKey, pool = 'main', onDurationChange }: TrackListProps) => {
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadTracks = async () => {
     try {
-      const res = await fetch(`/api/admin/tracks/${branchId}`)
+      const url = pool === 'random' ? `/api/admin/tracks/${branchId}?pool=random` : `/api/admin/tracks/${branchId}`
+      const res = await fetch(url)
       const data = await res.json()
-      setTracks(data.tracks || [])
+      const loaded: Track[] = data.tracks || []
+      setTracks(loaded)
+      onDurationChange?.(loaded.reduce((sum, t) => sum + t.duration, 0))
     } catch {
       // ignore
     } finally {
@@ -112,7 +113,7 @@ const TrackList = ({ branchId, refreshKey }: TrackListProps) => {
   return (
     <List dense>
       {tracks.map((track) => (
-        <TrackItem key={track.id} branchId={branchId} track={track} onChanged={loadTracks} />
+        <TrackItem key={track.id} branchId={branchId} track={track} pool={pool} onChanged={loadTracks} />
       ))}
     </List>
   )

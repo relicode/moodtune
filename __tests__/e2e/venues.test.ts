@@ -15,6 +15,7 @@ import {
   getVenue,
   updateVenue,
 } from '$/data/venues'
+import { BranchType, UserRole } from '$/types'
 
 const ids = {
   venues: [] as string[],
@@ -90,14 +91,14 @@ describe('venues', () => {
     const venue = await createVenue('Cascade Venue', 'cascade test')
     const venueId = venue.id
 
-    const user = await createUser(`cascade-user-${venueId}`, 'password123', 'user')
+    const user = await createUser(`cascade-user-${venueId}`, 'password123', UserRole.USER)
     await addUserToVenue(venueId, user.id)
 
-    const rootBranch = await createBranch(venueId, null, 'Root Folder', 'folder', null)
+    const rootBranch = await createBranch(venueId, undefined, 'Root Folder', BranchType.FOLDER)
     await addRootBranch(venueId, rootBranch.id)
 
     const imagePath = `test-cascade-${venueId}.jpg`
-    const childBranch = await createBranch(venueId, rootBranch.id, 'Child Playlist', 'playlist', imagePath)
+    const childBranch = await createBranch(venueId, rootBranch.id, 'Child Playlist', BranchType.PLAYLIST, imagePath)
     await addChildBranch(rootBranch.id, childBranch.id)
 
     // Upload a dummy image for the child branch

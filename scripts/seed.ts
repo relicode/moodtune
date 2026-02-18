@@ -20,7 +20,7 @@ const seed = async () => {
       id,
       username: adminUsername,
       passwordHash,
-      role: 'admin',
+      role: 'ADMIN',
       createdAt: new Date().toISOString(),
     })
     await redis.set(`user:byUsername:${adminUsername}`, id)

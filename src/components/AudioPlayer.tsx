@@ -1,86 +1,123 @@
 'use client'
 
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import PauseIcon from '@mui/icons-material/Pause'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import ShuffleOnIcon from '@mui/icons-material/ShuffleOn'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
 import VolumeDownIcon from '@mui/icons-material/VolumeDown'
 import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 import VolumeUpIcon from '@mui/icons-material/VolumeUp'
 import Box from '@mui/material/Box'
-import CircularProgress from '@mui/material/CircularProgress'
 import Container from '@mui/material/Container'
+import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
 import List from '@mui/material/List'
-import Slider from '@mui/material/Slider'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
-import Stack from '@mui/material/Stack'
+import Slider from '@mui/material/Slider'
+import Stack, { StackProps } from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import shuffle from 'lodash-es/shuffle'
+import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
-import type { PlaylistTrack, UserRole } from '$/types'
+import { useSnackbar } from '$/hooks/useSnackbar'
+import { formatDuration, formatTime } from '$/lib/utils'
+import { PlaylistUiOption } from '$/types'
+import type { Playlist, PlaylistTrack } from '$/types'
 
-type AudioPlayerProps = {
-  branchId: string
-  role: UserRole
+type AudioPlayerProps<A extends boolean> = {
+  playlist: Playlist<A>
+  isAdmin: A
 }
 
-const formatTime = (seconds: number) => {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
+type AnyTrack = PlaylistTrack<boolean>
+
+const isDetailedTrack = (track: AnyTrack): track is PlaylistTrack<true> => 'name' in track
+
+const generateTracklist = (
+  playlist: Playlist<boolean>,
+  shouldShuffle: boolean,
+  randomProbability: number
+): AnyTrack[] => {
+  let main: AnyTrack[] = [...playlist.tracks]
+  let randomPool: AnyTrack[] = [...playlist.randomTracks]
+
+  if (shouldShuffle) {
+    main = shuffle(main)
+    randomPool = shuffle(randomPool)
+  }
+
+  if (randomPool.length === 0 || randomProbability === 0) return main
+
+  const result: AnyTrack[] = []
+  let randomIndex = 0
+
+  for (const track of main) {
+    result.push(track)
+    if (Math.random() * 100 < randomProbability) {
+      result.push(randomPool[randomIndex % randomPool.length])
+      randomIndex++
+    }
+  }
+
+  return result
 }
 
-const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
-  const isAdmin = role === 'admin'
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const [tracks, setTracks] = useState<PlaylistTrack[]>([])
-  const [loading, setLoading] = useState(true)
+const GridCell = (props: StackProps) => (
+  <Grid size={4}>
+    <Stack direction="row" alignItems="center" justifyContent="center" sx={{ height: '100%' }} {...props} />
+  </Grid>
+)
+
+const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
+  const [adminView, setAdminView] = useState(isAdmin)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(100)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
+  const [random, setRandom] = useState(playlist.randomTrackProbability)
+  const [shouldShuffle, setShouldShuffle] = useState(playlist.ui.includes(PlaylistUiOption.SHUFFLE))
+  const [showRefresh, setShowRefresh] = useState(false)
+  const [tracks, setTracks] = useState<AnyTrack[]>(playlist.tracks)
+  const [volume, setVolume] = useState(100)
+
+  const totalDuration = tracks.reduce((acc, cur) => acc + cur.duration, 0)
+
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const confirm = useConfirm()
+  const { showSnackbar } = useSnackbar()
+
+  const showTrackList = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
+  const showShuffleControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
+  const showRandomControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)
+  const currentTrack = tracks[currentIndex]
+  const audioSrc = currentTrack?.url ?? null
+
+  const regenerate = () => {
+    setTracks(generateTracklist(playlist, shouldShuffle, random))
+    setCurrentIndex(0)
+    showSnackbar('Playlist refreshed')
+    setShowRefresh(false)
+  }
 
   useEffect(() => {
     let cancelled = false
-
-    const fetchTracks = async () => {
-      setLoading(true)
-      setCurrentIndex(0)
-      setIsPlaying(false)
-      setCurrentTime(0)
-      setDuration(0)
-
-      try {
-        const res = await fetch(`/api/playlist/${branchId}`)
-        if (cancelled) return
-
-        if (res.ok) {
-          const data = await res.json()
-          setTracks(data.tracks)
-        } else {
-          setTracks([])
-        }
-      } catch {
-        if (!cancelled) setTracks([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+    const init = async () => {
+      const tracklist = generateTracklist(playlist, shouldShuffle, random)
+      if (!cancelled) setTracks(tracklist)
     }
-
-    fetchTracks()
+    init()
     return () => {
       cancelled = true
     }
-  }, [branchId])
-
-  const currentTrack = tracks[currentIndex]
-  const audioSrc = currentTrack?.url ?? null
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time hydration-safe init; shouldShuffle read but should not re-trigger
+  }, [playlist])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -92,8 +129,21 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
     audio.addEventListener('timeupdate', onTimeUpdate)
     audio.addEventListener('durationchange', onDurationChange)
 
+    const onCanPlay = async () => {
+      if (isPlaying) {
+        try {
+          await audio.play()
+        } catch (e) {
+          console.warn(`onCanPlayError`, e)
+        }
+      }
+    }
+
     if (isPlaying) {
-      audio.play().catch(() => {})
+      audio.play().catch((e) => {
+        console.warn(`Couldn't play, adding event listener`, e)
+        audio.addEventListener('canplay', onCanPlay, { once: true })
+      })
     } else {
       audio.pause()
     }
@@ -101,6 +151,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate)
       audio.removeEventListener('durationchange', onDurationChange)
+      audio.removeEventListener('canplay', onCanPlay)
     }
   }, [audioSrc, isPlaying])
 
@@ -112,7 +163,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
       if (currentIndex < tracks.length - 1) {
         setCurrentIndex(currentIndex + 1)
       } else {
-        setIsPlaying(false)
+        regenerate()
       }
     }
 
@@ -120,6 +171,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
     return () => {
       audio.removeEventListener('ended', onEnded)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- regenerate is stable via React Compiler
   }, [currentIndex, tracks])
 
   useEffect(() => {
@@ -129,54 +181,17 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
     audio.muted = muted
   }, [volume, muted])
 
-  const toggleMute = () => {
-    setMuted(!muted)
-  }
-
   const VolumeIcon = muted || volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon
 
   const loadAndPlay = (index: number) => {
-    if (!tracks[index]) return
+    const audio = audioRef.current
+    if (!tracks[index] || !audio) return
     setCurrentIndex(index)
     setIsPlaying(true)
-  }
-
-  const togglePlay = async () => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    if (isPlaying) {
-      audio.pause()
-      setIsPlaying(false)
-    } else {
-      await audio.play()
-      setIsPlaying(true)
+    if (index === currentIndex) {
+      audio.currentTime = 0
+      audio.play().catch(() => {})
     }
-  }
-
-  const skipPrevious = () => {
-    if (currentIndex > 0) loadAndPlay(currentIndex - 1)
-  }
-
-  const skipNext = () => {
-    if (currentIndex < tracks.length - 1) loadAndPlay(currentIndex + 1)
-  }
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current
-    if (!audio || !duration) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = (e.clientX - rect.left) / rect.width
-    audio.currentTime = ratio * duration
-  }
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    )
   }
 
   if (tracks.length === 0) {
@@ -191,35 +206,68 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
 
   return (
     <Container maxWidth="md" disableGutters>
-      <audio ref={audioRef} src={audioSrc || undefined} />
+      <audio ref={audioRef} src={audioSrc || undefined} hidden />
+
+      {isAdmin && (
+        <IconButton
+          size="large"
+          onClick={() => setAdminView((prev) => !prev)}
+          sx={{ position: 'fixed', top: 24, right: 24 }}
+          color={adminView ? 'warning' : 'default'}
+        >
+          <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
+        </IconButton>
+      )}
 
       <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
-        {isAdmin && (
-          <>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {currentTrack?.title ?? `Track ${currentIndex + 1}`}
-            </Typography>
-            {currentTrack?.artist && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
-                {currentTrack.artist}
-              </Typography>
+        <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
+            <Typography variant="h4">{playlist.name}</Typography>
+            {showRefresh && (
+              <IconButton
+                onClick={async () => {
+                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  if (confirmed) regenerate()
+                }}
+                sx={{ position: 'absolute', left: '120%' }}
+              >
+                <RefreshIcon />
+              </IconButton>
             )}
-          </>
-        )}
+          </Box>
+        </Box>
+        <Stack spacing={1} alignItems="center">
+          {formatDuration(totalDuration)}
 
-        <Box onClick={handleProgressClick} sx={{ cursor: 'pointer' }}>
+          {showTrackList && currentTrack && isDetailedTrack(currentTrack) && (
+            <Typography fontWeight="bold">
+              {currentTrack.artist} - {currentTrack.name}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </Typography>
+        </Stack>
+        <Box
+          onClick={(e) => {
+            const audio = audioRef.current
+            if (!audio || !duration) return
+            const rect = e.currentTarget.getBoundingClientRect()
+            audio.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+          }}
+          sx={{ cursor: 'pointer' }}
+        >
           <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
         </Box>
-
-        <Stack direction="row" alignItems="center" spacing={3}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
-            <IconButton onClick={toggleMute} size="small">
+        <Grid container>
+          <GridCell>
+            <IconButton onClick={() => setMuted(!muted)} size="small">
               <VolumeIcon fontSize="small" />
             </IconButton>
             <Slider
               value={muted ? 0 : volume}
-              onChange={(_, value) => {
-                setVolume(value as number)
+              onChange={(_, value: number) => {
+                setVolume(value)
                 if (muted) setMuted(false)
               }}
               min={0}
@@ -240,36 +288,90 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
                 mb: 0,
                 '& .MuiSlider-markLabel': {
                   fontSize: '0.625rem',
-                  [theme.breakpoints.down('md')]: { display: 'none' },
+                  [theme.breakpoints.down('sm')]: { display: 'none' },
                 },
               })}
             />
-          </Stack>
-          <Stack direction="row" alignItems="center">
-            <IconButton onClick={skipPrevious} disabled={currentIndex === 0}>
+          </GridCell>
+          <GridCell>
+            <IconButton onClick={() => loadAndPlay(currentIndex - 1)} disabled={currentIndex === 0}>
               <SkipPreviousIcon />
             </IconButton>
-            <IconButton onClick={togglePlay} size="large">
+            <IconButton
+              onClick={async () => {
+                const audio = audioRef.current
+                if (!audio) return
+                if (isPlaying) {
+                  audio.pause()
+                  setIsPlaying(false)
+                } else {
+                  await audio.play()
+                  setIsPlaying(true)
+                }
+              }}
+              size="large"
+            >
               {isPlaying ? <PauseIcon fontSize="large" /> : <PlayArrowIcon fontSize="large" />}
             </IconButton>
-            <IconButton onClick={skipNext} disabled={currentIndex === tracks.length - 1}>
+            <IconButton
+              onClick={async () => {
+                if (currentIndex < tracks.length - 1) {
+                  loadAndPlay(currentIndex + 1)
+                } else {
+                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  if (confirmed) regenerate()
+                }
+              }}
+            >
               <SkipNextIcon />
             </IconButton>
-          </Stack>
-          <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ flex: 1 }}>
-            <Typography variant="caption">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </Typography>
-            <AccessTimeIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-          </Stack>
-        </Stack>
+          </GridCell>
+          {(showShuffleControl || showRandomControl) && (
+            <GridCell>
+              {showShuffleControl && (
+                <IconButton
+                  color={shouldShuffle ? 'success' : 'default'}
+                  onClick={() => {
+                    setShouldShuffle((prev) => !prev)
+                    setShowRefresh(true)
+                  }}
+                >
+                  <ShuffleOnIcon />
+                </IconButton>
+              )}
+              {showRandomControl && (
+                <>
+                  <Slider
+                    disabled={!shouldShuffle}
+                    value={random}
+                    min={0}
+                    max={100}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(v) => `${v}%`}
+                    onChange={(_e, v) => {
+                      setRandom(v as number)
+                      setShowRefresh(true)
+                    }}
+                    sx={{ ml: 1, mr: 2 }}
+                  />
+                  <Typography color="text.secondary" textAlign="center">
+                    {random}%
+                  </Typography>
+                </>
+              )}
+            </GridCell>
+          )}
+        </Grid>
       </Stack>
 
-      {isAdmin && (
+      {showTrackList && (
         <List>
           {tracks.map((track, index) => (
-            <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
-              <ListItemText primary={track.title ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
+            <ListItemButton key={track.id + index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
+              <ListItemText
+                primary={isDetailedTrack(track) ? track.name : `Track ${index + 1}`}
+                secondary={isDetailedTrack(track) ? track.artist || undefined : undefined}
+              />
               <Typography variant="caption" color="text.secondary">
                 {formatTime(track.duration)}
               </Typography>

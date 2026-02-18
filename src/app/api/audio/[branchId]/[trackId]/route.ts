@@ -5,6 +5,7 @@ import { listAll } from '$/data/dal'
 import minioClient, { AUDIO_BUCKET } from '$/data/minio'
 import { getTrack } from '$/data/tracks'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
 const toReadableStream = (readable: Readable): ReadableStream<Uint8Array> =>
   new ReadableStream({
@@ -31,7 +32,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
     return new Response('Not found', { status: 404 })
   }
 
-  if (session.role === 'user' && !session.venueIds.includes(branch.venueId)) {
+  if (session.role === UserRole.USER && !session.venueIds.includes(branch.venueId)) {
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -40,8 +41,11 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
     return new Response('Not found', { status: 404 })
   }
 
-  const trackIds = await listAll(`branch:${branchId}:tracks`)
-  if (!trackIds.includes(trackId)) {
+  const [trackIds, randomTrackIds] = await Promise.all([
+    listAll(`branch:${branchId}:tracks`),
+    listAll(`branch:${branchId}:randomTracks`),
+  ])
+  if (!trackIds.includes(trackId) && !randomTrackIds.includes(trackId)) {
     return new Response('Not found', { status: 404 })
   }
 

@@ -4,18 +4,19 @@ import { join } from 'path'
 import { NextResponse } from 'next/server'
 
 import { AUDIO_BUCKET, removeFile, uploadFile } from '$/data/minio'
-import { addTrackToBranch, createTrack } from '$/data/tracks'
+import { addRandomTrackToBranch, addTrackToBranch, createTrack } from '$/data/tracks'
 import { compressToM4a, TARGET_BYTES_PER_SEC } from '$/lib/ffmpeg'
 import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -24,6 +25,8 @@ export const POST = async (request: Request) => {
   const formTitle = (formData.get('title') as string)?.trim() || ''
   const formArtist = (formData.get('artist') as string)?.trim() || ''
   const audioFile = formData.get('audio') as File | null
+  const rawPool = (formData.get('pool') as string) || 'main'
+  const pool: 'main' | 'random' = rawPool === 'random' ? 'random' : 'main'
 
   if (!branchId || !audioFile || audioFile.size === 0) {
     return NextResponse.json({ error: 'branchId and audio file are required' }, { status: 400 })
@@ -67,7 +70,11 @@ export const POST = async (request: Request) => {
 
     try {
       const track = await createTrack(title, artist, uploadFileName, meta.duration)
-      await addTrackToBranch(branchId, track.id)
+      if (pool === 'random') {
+        await addRandomTrackToBranch(branchId, track.id)
+      } else {
+        await addTrackToBranch(branchId, track.id)
+      }
     } catch {
       await removeFile(AUDIO_BUCKET, uploadFileName).catch(() => {})
       return NextResponse.json({ error: 'Failed to save track record' }, { status: 500 })

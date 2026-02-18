@@ -2,10 +2,9 @@
 
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import QueueMusicIcon from '@mui/icons-material/QueueMusic'
 import Box from '@mui/material/Box'
 import Collapse from '@mui/material/Collapse'
@@ -21,11 +20,10 @@ import { useConfirm } from 'material-ui-confirm'
 import { createContext, useContext, useEffect, useState } from 'react'
 
 import { deleteBranchAction } from '$/actions/admin'
+import { BranchType } from '$/types'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
-import BranchEditForm from './BranchEditForm'
-import TrackList from './TrackList'
-import TrackUploader from './TrackUploader'
+import DialogEditPlaylist from './DialogEditPlaylist'
 
 type BranchTreeContext = {
   openBranches: string[]
@@ -55,11 +53,10 @@ type BranchItemProps = {
 const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const { openBranches, toggleBranch, refresh } = useContext(BranchTreeContext)
   const open = openBranches.includes(branch.id)
-  const [editOpen, setEditOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
-  const [trackRefreshKey, setTrackRefreshKey] = useState(0)
+  const [tracksOpen, setTracksOpen] = useState(false)
   const confirm = useConfirm()
-  const canAdd = branch.type === 'folder'
+  const canAdd = branch.type === BranchType.FOLDER
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -72,9 +69,12 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   return (
     <>
       <Stack direction="row" alignItems="center" spacing={1}>
-        <ListItemButton onClick={() => toggleBranch(branch.id)} sx={{ flexGrow: 1 }}>
+        <ListItemButton
+          onClick={() => (branch.type === BranchType.FOLDER ? toggleBranch(branch.id) : setTracksOpen(true))}
+          sx={{ flexGrow: 1 }}
+        >
           <ListItemIcon>
-            {branch.type === 'folder' ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
+            {branch.type === BranchType.FOLDER ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
           </ListItemIcon>
           <ListItemText primary={branch.name} />
         </ListItemButton>
@@ -85,18 +85,8 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
             </IconButton>
           </Tooltip>
         )}
-        <Tooltip title="Edit branch">
-          <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
         <Tooltip title="Open in venue">
-          <IconButton
-            size="small"
-            color="primary"
-            href={`/venue/${venueId}/${branch.id}`}
-            target="_blank"
-          >
+          <IconButton size="small" color="primary" href={`/venue/${venueId}/${branch.id}`} target="_blank">
             <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -107,7 +97,6 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         </Tooltip>
       </Stack>
 
-      <BranchEditForm branch={branch} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
       {canAdd && (
         <BranchCreateForm
           venueId={venueId}
@@ -121,18 +110,17 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         />
       )}
 
-      <Collapse in={open} unmountOnExit>
-        <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
-          {branch.type === 'folder' ? (
+      {branch.type === BranchType.FOLDER && (
+        <Collapse in={open} unmountOnExit>
+          <Box sx={{ pl: 4, pt: 1, ml: 2, borderLeft: 2, borderColor: 'divider' }}>
             <BranchTree venueId={venueId} parentId={branch.id} />
-          ) : (
-            <>
-              <TrackList branchId={branch.id} refreshKey={trackRefreshKey} />
-              <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
-            </>
-          )}
-        </Box>
-      </Collapse>
+          </Box>
+        </Collapse>
+      )}
+
+      {branch.type === BranchType.PLAYLIST && (
+        <DialogEditPlaylist branch={branch} open={tracksOpen} onClose={() => setTracksOpen(false)} />
+      )}
     </>
   )
 }

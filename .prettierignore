@@ -1,2 +1,5 @@
 # Ignore all CSS files since they're handled by TailwindCSS formatter
 **/*.css
+
+# Runtime data directories
+data/

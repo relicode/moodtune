@@ -10,6 +10,7 @@ import {
   isUserInVenue,
   removeUserFromVenue,
 } from '$/data/venues'
+import { UserRole } from '$/types'
 import { API_BASE, fetchApi, fetchApiUnauthed, userCookie } from './helpers'
 
 const venueIds: string[] = []
@@ -29,19 +30,19 @@ const uniqueUsername = () => `test-user-${crypto.randomUUID().slice(0, 8)}`
 describe('users — data layer', () => {
   it('create user', async () => {
     const username = uniqueUsername()
-    const user = await createUser(username, 'password123', 'user')
+    const user = await createUser(username, 'password123', UserRole.USER)
     userIds.push(user.id)
 
     const fetched = await getUserById(user.id)
     expect(fetched).not.toBeNull()
     expect(fetched!.username).toBe(username)
-    expect(fetched!.role).toBe('user')
+    expect(fetched!.role).toBe(UserRole.USER)
     expect(fetched!.createdAt).toBeTruthy()
   })
 
   it('getUserByUsername', async () => {
     const username = uniqueUsername()
-    const user = await createUser(username, 'password123', 'user')
+    const user = await createUser(username, 'password123', UserRole.USER)
     userIds.push(user.id)
 
     const fetched = await getUserByUsername(username)
@@ -51,15 +52,15 @@ describe('users — data layer', () => {
 
   it('duplicate username throws', async () => {
     const username = uniqueUsername()
-    const user = await createUser(username, 'password123', 'user')
+    const user = await createUser(username, 'password123', UserRole.USER)
     userIds.push(user.id)
 
-    await expect(createUser(username, 'other-password', 'user')).rejects.toThrow('already taken')
+    await expect(createUser(username, 'other-password', UserRole.USER)).rejects.toThrow('already taken')
   })
 
   it('delete user', async () => {
     const username = uniqueUsername()
-    const user = await createUser(username, 'password123', 'user')
+    const user = await createUser(username, 'password123', UserRole.USER)
     // Don't push to userIds since we delete manually
 
     await deleteUser(user.id)
@@ -71,7 +72,7 @@ describe('users — data layer', () => {
   it('venue assignment', async () => {
     const venue = await createVenue('User Venue', 'user venue test')
     venueIds.push(venue.id)
-    const user = await createUser(uniqueUsername(), 'password123', 'user')
+    const user = await createUser(uniqueUsername(), 'password123', UserRole.USER)
     userIds.push(user.id)
 
     await addUserToVenue(venue.id, user.id)
@@ -84,7 +85,7 @@ describe('users — data layer', () => {
   it('venue removal', async () => {
     const venue = await createVenue('Removal Venue', 'removal test')
     venueIds.push(venue.id)
-    const user = await createUser(uniqueUsername(), 'password123', 'user')
+    const user = await createUser(uniqueUsername(), 'password123', UserRole.USER)
     userIds.push(user.id)
 
     await addUserToVenue(venue.id, user.id)
@@ -98,7 +99,7 @@ describe('users — HTTP routes', () => {
     const venue = await createVenue('HTTP User Venue', 'http test')
     venueIds.push(venue.id)
     const username = uniqueUsername()
-    const user = await createUser(username, 'password123', 'user')
+    const user = await createUser(username, 'password123', UserRole.USER)
     userIds.push(user.id)
     await addUserToVenue(venue.id, user.id)
 
@@ -110,7 +111,7 @@ describe('users — HTTP routes', () => {
     const found = data.users.find((u: { id: string }) => u.id === user.id)
     expect(found).toBeDefined()
     expect(found.username).toBe(username)
-    expect(found.role).toBe('user')
+    expect(found.role).toBe(UserRole.USER)
     expect(found.createdAt).toBeTruthy()
     expect(found.passwordHash).toBeUndefined()
   })
