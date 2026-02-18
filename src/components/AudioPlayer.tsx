@@ -1,5 +1,6 @@
 'use client'
 
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import PauseIcon from '@mui/icons-material/Pause'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -25,7 +26,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
-import { formatTime } from '$/lib/utils'
+import { formatDuration, formatTime } from '$/lib/utils'
 import { PlaylistUiOption } from '$/types'
 import type { Playlist, PlaylistTrack } from '$/types'
 
@@ -74,6 +75,7 @@ const GridCell = (props: StackProps) => (
 )
 
 const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
+  const [adminView, setAdminView] = useState(isAdmin)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -85,13 +87,15 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const [tracks, setTracks] = useState<AnyTrack[]>(playlist.tracks)
   const [volume, setVolume] = useState(100)
 
+  const totalDuration = tracks.reduce((acc, cur) => acc + cur.duration, 0)
+
   const audioRef = useRef<HTMLAudioElement>(null)
   const confirm = useConfirm()
   const { showSnackbar } = useSnackbar()
 
-  const showNames = isAdmin || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
-  const showShuffleControl = isAdmin || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
-  const showRandomControl = isAdmin || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)
+  const showTrackList = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
+  const showShuffleControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
+  const showRandomControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)
   const currentTrack = tracks[currentIndex]
   const audioSrc = currentTrack?.url ?? null
 
@@ -204,19 +208,38 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
     <Container maxWidth="md" disableGutters>
       <audio ref={audioRef} src={audioSrc || undefined} hidden />
 
+      {isAdmin && (
+        <IconButton
+          size="large"
+          onClick={() => setAdminView((prev) => !prev)}
+          sx={{ position: 'fixed', top: 24, right: 24 }}
+          color={adminView ? 'warning' : 'default'}
+        >
+          <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
+        </IconButton>
+      )}
+
       <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
         <Box sx={{ textAlign: 'center' }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
             <Typography variant="h4">{playlist.name}</Typography>
             {showRefresh && (
-              <IconButton onClick={regenerate} sx={{ position: 'absolute', left: '100%' }}>
+              <IconButton
+                onClick={async () => {
+                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  if (confirmed) regenerate()
+                }}
+                sx={{ position: 'absolute', left: '120%' }}
+              >
                 <RefreshIcon />
               </IconButton>
             )}
           </Box>
         </Box>
         <Stack spacing={1} alignItems="center">
-          {showNames && currentTrack && isDetailedTrack(currentTrack) && (
+          {formatDuration(totalDuration)}
+
+          {showTrackList && currentTrack && isDetailedTrack(currentTrack) && (
             <Typography fontWeight="bold">
               {currentTrack.artist} - {currentTrack.name}
             </Typography>
@@ -243,8 +266,8 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
             </IconButton>
             <Slider
               value={muted ? 0 : volume}
-              onChange={(_, value) => {
-                setVolume(value as number)
+              onChange={(_, value: number) => {
+                setVolume(value)
                 if (muted) setMuted(false)
               }}
               min={0}
@@ -341,7 +364,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
         </Grid>
       </Stack>
 
-      {showNames && (
+      {showTrackList && (
         <List>
           {tracks.map((track, index) => (
             <ListItemButton key={track.id + index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>

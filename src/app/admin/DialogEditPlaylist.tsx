@@ -22,18 +22,11 @@ import { useEffect, useRef, useState } from 'react'
 
 import { setBranchRandomAction, updateBranchImageAction, updatePlaylistSettingsAction } from '$/actions/admin'
 import { getImageUrl } from '$/actions/media'
-import { formatTime } from '$/lib/utils'
+import { formatDuration, formatTime } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
 import type { Branch } from '$/types'
 import TrackList from './TrackList'
 import TrackUploader from './TrackUploader'
-
-const formatDuration = (seconds: number) => {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
 
 type SettingSwitchProps = {
   checked: boolean
