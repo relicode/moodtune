@@ -7,7 +7,14 @@ import redis from './redis'
 import { deleteTrack } from './tracks'
 import { getRootBranchIds } from './venues'
 
-const schema = { parentId: 'nullable', imagePath: 'nullable', random: 'number' } as const
+const schema = {
+  parentId: 'nullable',
+  imagePath: 'nullable',
+  random: 'number',
+  shuffle: 'boolean',
+  shuffleVisibleToUser: 'boolean',
+  ui: 'json',
+} as const
 
 export const createBranch = async (
   venueId: string,
@@ -15,8 +22,16 @@ export const createBranch = async (
   name: string,
   type: BranchType,
   imagePath: string | null,
-  random = 0
-): Promise<Branch> => hashCreate<Branch>('branch', { venueId, parentId, name, type, imagePath, random }, schema)
+  random = 0,
+  shuffle = true,
+  shuffleVisibleToUser = true,
+  ui: string[] = []
+): Promise<Branch> =>
+  hashCreate<Branch>(
+    'branch',
+    { venueId, parentId, name, type, imagePath, random, shuffle, shuffleVisibleToUser, ui },
+    schema
+  )
 
 export const getBranch = async (id: string): Promise<Branch | null> => hashGet<Branch>(`branch:${id}`, schema)
 
@@ -85,13 +100,16 @@ export const getRecentPlaylists = async (venueIds: string[]): Promise<Branch[]> 
 
 export const updateBranch = async (
   id: string,
-  updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath' | 'random'>>
+  updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath' | 'random' | 'shuffle' | 'shuffleVisibleToUser' | 'ui'>>
 ) => {
   const mapped: Record<string, unknown> = {}
   if (updates.name !== undefined) mapped.name = updates.name
   if (updates.type !== undefined) mapped.type = updates.type
   if (updates.imagePath !== undefined) mapped.imagePath = updates.imagePath
   if (updates.random !== undefined) mapped.random = updates.random
+  if (updates.shuffle !== undefined) mapped.shuffle = updates.shuffle
+  if (updates.shuffleVisibleToUser !== undefined) mapped.shuffleVisibleToUser = updates.shuffleVisibleToUser
+  if (updates.ui !== undefined) mapped.ui = updates.ui
 
   if (Object.keys(mapped).length > 0) {
     await hashSet(`branch:${id}`, mapped, schema)

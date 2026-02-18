@@ -24,6 +24,8 @@ export type Venue = {
 
 export type BranchType = 'folder' | 'playlist'
 
+export type PlaylistUiOption = 'SHOW_TRACK_NAMES' | 'SHOW_CONTROLS_RANDOM' | 'SHOW_CONTROLS_SHUFFLE'
+
 export type Branch = {
   id: string
   venueId: string
@@ -32,6 +34,9 @@ export type Branch = {
   type: BranchType
   imagePath: string | null
   random: number
+  shuffle: boolean
+  shuffleVisibleToUser: boolean
+  ui: PlaylistUiOption[]
   createdAt: string
 }
 
@@ -52,11 +57,20 @@ export type Track = {
 
 export type PlaylistTrack = {
   url: string
+  name: string
+  artist: string
   duration: number
-  id?: string
-  title?: string
-  artist?: string
-  createdAt?: string
+}
+
+export type PlaylistResponse = {
+  id: string
+  name: string
+  tracks: PlaylistTrack[]
+  randomTracks: PlaylistTrack[]
+  randomTrackProbability: number
+  shuffle: boolean
+  shuffleVisibleToUser: boolean
+  ui: PlaylistUiOption[]
 }
 
 export type ActionResult = {

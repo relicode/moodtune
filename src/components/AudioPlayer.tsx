@@ -197,7 +197,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
         {isAdmin && (
           <>
             <Typography variant="subtitle1" fontWeight="bold">
-              {currentTrack?.title ?? `Track ${currentIndex + 1}`}
+              {currentTrack?.name ?? `Track ${currentIndex + 1}`}
             </Typography>
             {currentTrack?.artist && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
@@ -269,7 +269,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
         <List>
           {tracks.map((track, index) => (
             <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
-              <ListItemText primary={track.title ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
+              <ListItemText primary={track.name ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
               <Typography variant="caption" color="text.secondary">
                 {formatTime(track.duration)}
               </Typography>

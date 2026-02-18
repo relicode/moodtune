@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server'
 
 import { getBranch } from '$/data/branches'
-import { getPlaylistTracks } from '$/data/tracks'
+import { getPlaylistTracks, getRandomTracks } from '$/data/tracks'
 import { getSessionFromCookie } from '$/lib/session'
+import type { PlaylistResponse, PlaylistTrack, Track } from '$/types'
+
+const mapTrack = (playlistId: string, track: Track): PlaylistTrack => ({
+  url: `/api/audio/${playlistId}/${track.id}`,
+  name: track.title,
+  artist: track.artist,
+  duration: track.duration,
+})
 
 export const GET = async (_request: Request, { params }: { params: Promise<{ playlistId: string }> }) => {
   const session = await getSessionFromCookie()
@@ -20,21 +28,18 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ pla
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const tracks = await getPlaylistTracks(playlistId)
-  const tracksWithUrls = tracks.map((track) => {
-    const url = `/api/audio/${playlistId}/${track.id}`
-    if (session.role === 'user') {
-      return { url, duration: track.duration }
-    }
-    return {
-      url,
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      duration: track.duration,
-      createdAt: track.createdAt,
-    }
-  })
+  const [tracks, randomTracks] = await Promise.all([getPlaylistTracks(playlistId), getRandomTracks(playlistId)])
 
-  return NextResponse.json({ tracks: tracksWithUrls })
+  const response: PlaylistResponse = {
+    id: branch.id,
+    name: branch.name,
+    tracks: tracks.map((t) => mapTrack(playlistId, t)),
+    randomTracks: randomTracks.map((t) => mapTrack(playlistId, t)),
+    randomTrackProbability: branch.random,
+    shuffle: branch.shuffle,
+    shuffleVisibleToUser: branch.shuffleVisibleToUser,
+    ui: branch.ui,
+  }
+
+  return NextResponse.json(response)
 }
