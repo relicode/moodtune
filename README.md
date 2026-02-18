@@ -24,7 +24,7 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
 3. Copy the environment template and adjust as needed:
 
    ```sh
-   cp env-template .env.local
+   cp env-template .env
    ```
 
 4. Seed the database (creates admin user and MinIO buckets):

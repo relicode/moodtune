@@ -24,7 +24,7 @@ Moodtune is a Next.js 16 application using React 19 and MUI 7. It uses the App R
 
 ## Environment Setup
 
-Copy `env-template` to `.env.local`. Node version: 24.11.1 (see `.nvmrc`).
+Copy `env-template` to `.env`. Node version: 24.11.1 (see `.nvmrc`).
 
 Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (`MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, etc.).
 

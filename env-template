@@ -1,21 +1,25 @@
-# Copy to .env.local
+# Copy to .env
 
-# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/
+# --- Redis ---
+REDIS_URL=redis://localhost:6379 # Redis connection URL (overridden to redis://redis:6379 in Docker Compose)
 
-REDIS_URL=redis://localhost:6379
+# --- MinIO ---
+MINIO_ENDPOINT=localhost # MinIO hostname (overridden to 'minio' in Docker Compose)
+MINIO_PORT=9000 # MinIO API port
+MINIO_ACCESS_KEY=minioadmin # MinIO access key
+MINIO_SECRET_KEY=minioadmin # MinIO secret key
+MINIO_USE_SSL=false # MinIO TLS enabled
+MINIO_BUCKET=moodtune # Bucket name prefix (images bucket is {MINIO_BUCKET}-images)
 
-MINIO_ENDPOINT=localhost
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_USE_SSL=false
-MINIO_BUCKET=moodtune
+# --- Auth ---
+JWT_SECRET=change-me-to-a-random-secret # Secret key for signing JWT session tokens
+ADMIN_USERNAME=admin # Default admin username created by db:seed
+ADMIN_PASSWORD=admin # Default admin password created by db:seed
 
-JWT_SECRET=change-me-to-a-random-secret
+# --- Uploads ---
+# UPLOAD_TMP_DIR=/var/tmp # Directory for temporary upload files (defaults to /var/tmp)
 
-# UPLOAD_TMP_DIR=/var/tmp
-
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin
+# --- Build ---
+# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/ # Private npm registry (optional, used during Docker build)
 
 # vi: filetype=sh sw=2 ts=2 et

@@ -8,6 +8,10 @@ services:
 
     restart: unless-stopped
     profiles: [app]
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
     ports:
       - '127.0.0.1:3000:3000'
     expose:
