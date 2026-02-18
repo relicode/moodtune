@@ -21,29 +21,24 @@ RUN npm run build
 RUN cp -r public .next/standalone/public && \
     cp -r .next/static .next/standalone/.next/static
 
-# ffmpeg-static supports FFMPEG_BIN env var so the binary can live anywhere.
-# ffprobe-static resolves relative to __dirname so it must be in node_modules.
-RUN ARCH=$(node -p "process.arch") && \
-    cp node_modules/ffmpeg-static/ffmpeg .next/standalone/ffmpeg && \
-    mkdir -p .next/standalone/node_modules/ffprobe-static/bin/linux/$ARCH && \
-    cp node_modules/ffprobe-static/bin/linux/$ARCH/ffprobe \
-       .next/standalone/node_modules/ffprobe-static/bin/linux/$ARCH/ffprobe
+# ffmpeg-static supports FFMPEG_BIN env var so the binary can live anywhere
+RUN cp node_modules/ffmpeg-static/ffmpeg .next/standalone/ffmpeg
 
 # ── runner ────────────────────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /app
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini ffmpeg
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ENV FFMPEG_BIN=/app/ffmpeg
+ENV FFPROBE_BIN=/usr/bin/ffprobe
 
 COPY --from=builder /app/.next/standalone ./
-RUN chmod +x ffmpeg && \
-    find node_modules/ffprobe-static/bin -name ffprobe -exec chmod +x {} +
+RUN chmod +x ffmpeg
 
 USER 1001:100
 

@@ -2,9 +2,12 @@ import 'server-only'
 
 import { execFile as execFileCb } from 'child_process'
 import { promisify } from 'util'
-import ffprobe from 'ffprobe-static'
 
 const execFile = promisify(execFileCb)
+
+// Use FFPROBE_BIN env var if set (e.g. system-installed ffprobe on ARM),
+// otherwise fall back to ffprobe-static's bundled binary
+const ffprobePath = process.env.FFPROBE_BIN ?? require('ffprobe-static').path
 
 export type AudioMetadata = {
   duration: number
@@ -38,6 +41,6 @@ type ProbeOutput = {
 }
 
 const probe = async (filePath: string): Promise<ProbeOutput> => {
-  const { stdout } = await execFile(ffprobe.path, ['-v', 'quiet', '-print_format', 'json', '-show_format', filePath])
+  const { stdout } = await execFile(ffprobePath, ['-v', 'quiet', '-print_format', 'json', '-show_format', filePath])
   return JSON.parse(stdout) as ProbeOutput
 }
