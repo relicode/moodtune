@@ -1,0 +1,118 @@
+# Production overrides — use with:
+#   docker compose -f compose.yaml -f compose.production.yaml up -d
+#
+# Requires .env with: REDIS_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# JWT_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD (see env-template.production)
+
+services:
+  app:
+    user: '1001:100'
+    profiles: !reset []
+    ports: !reset []
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: 'false'
+      MINIO_BUCKET: moodtune
+      JWT_SECRET: ${JWT_SECRET}
+    read_only: true
+    tmpfs:
+      - /tmp:size=512M
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/').then(r=>{if(!r.ok)throw r.status})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  redis:
+    user: '1001:100'
+    ports: !reset []
+    networks:
+      - backend
+    command: >-
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
+      --rename-command DEBUG ""
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    user: '1001:100'
+    ports: !reset []
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  seed:
+    user: '1001:100'
+    profiles: [seed]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        - NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}
+    working_dir: /app
+    command: npx tsx scripts/seed.ts
+    networks:
+      - backend
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: 'false'
+      MINIO_BUCKET: moodtune
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  proxy:
+    external: true
+  backend:
+    internal: true

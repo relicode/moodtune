@@ -8,6 +8,42 @@ const COOKIE_NAME = 'moodtune-session'
 const SESSION_MAX_AGE = 60 * 60 * 12 // 12 hours
 const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'change-me')
 
+// ── Login rate limiting ──────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_MAX_IPS = 10_000
+const CLEANUP_INTERVAL_MS = 60 * 1000
+
+const attempts = new Map<string, number[]>()
+const state = { lastCleanup: Date.now() }
+
+const cleanupStaleEntries = () => {
+  const now = Date.now()
+  if (now - state.lastCleanup < CLEANUP_INTERVAL_MS) return
+  state.lastCleanup = now
+  const cutoff = now - RATE_LIMIT_WINDOW_MS
+  for (const [ip, timestamps] of attempts) {
+    const fresh = timestamps.filter((t) => t > cutoff)
+    if (fresh.length === 0) {
+      attempts.delete(ip)
+    } else {
+      attempts.set(ip, fresh)
+    }
+  }
+}
+
+const isRateLimited = (ip: string): boolean => {
+  cleanupStaleEntries()
+  if (attempts.size >= RATE_LIMIT_MAX_IPS && !attempts.has(ip)) return true
+  const now = Date.now()
+  const cutoff = now - RATE_LIMIT_WINDOW_MS
+  const timestamps = (attempts.get(ip) ?? []).filter((t) => t > cutoff)
+  timestamps.push(now)
+  attempts.set(ip, timestamps)
+  return timestamps.length > RATE_LIMIT_MAX
+}
+
+// ── JWT helpers ──────────────────────────────────────────────────────────────
 const verifyToken = async (token: string): Promise<(SessionPayload & JWTPayload) | null> => {
   try {
     const { payload } = await jwtVerify(token, getSecret())
@@ -33,8 +69,21 @@ const shouldRefresh = (session: SessionPayload & JWTPayload): boolean => {
   return elapsed > lifetime / 2
 }
 
+// ── Middleware ────────────────────────────────────────────────────────────────
 const proxy = async (request: NextRequest) => {
   const { pathname } = request.nextUrl
+
+  // Rate limit login attempts (POST to / triggers the login server action)
+  if (pathname === '/' && request.method === 'POST') {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? '127.0.0.1'
+    if (isRateLimited(ip)) {
+      return new NextResponse('Too Many Requests', {
+        status: 429,
+        headers: { 'Retry-After': '900' },
+      })
+    }
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value
 
   const session = token ? await verifyToken(token) : null
@@ -73,7 +122,7 @@ const proxy = async (request: NextRequest) => {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/venue/:path*'],
+  matcher: ['/', '/admin/:path*', '/venue/:path*'],
 }
 
 export default proxy
