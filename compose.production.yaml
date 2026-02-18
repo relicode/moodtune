@@ -7,6 +7,11 @@
 services:
   app:
     user: '1001:100'
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}
     profiles: !reset []
     ports: !reset []
     networks:
