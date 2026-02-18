@@ -36,8 +36,8 @@ Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (
 - **`src/actions/`** — Server Actions (`admin.ts`, `auth.ts`, `branches.ts`, `media.ts`)
 - **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
-- **`src/hooks/`** — Custom React hooks
-- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`)
+- **`src/hooks/`** — Custom React hooks (`useSnackbar` — shared snackbar context via `SnackbarProvider` in ThemeRegistry)
+- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `utils.ts`)
 - **`src/proxy.ts`** — Middleware: JWT verification, route guards (`/admin` requires admin role, `/venue/[venueId]` requires venue access), sliding token refresh
 - **`src/types/`** — TypeScript type definitions
 - **`src/theme.ts`** — MUI theme config (CSS variables, light/dark color schemes, Inter font)

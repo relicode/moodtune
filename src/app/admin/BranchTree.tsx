@@ -2,7 +2,6 @@
 
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
@@ -24,7 +23,6 @@ import { deleteBranchAction } from '$/actions/admin'
 import { BranchType } from '$/types'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
-import BranchEditForm from './BranchEditForm'
 import DialogEditPlaylist from './DialogEditPlaylist'
 
 type BranchTreeContext = {
@@ -55,7 +53,6 @@ type BranchItemProps = {
 const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const { openBranches, toggleBranch, refresh } = useContext(BranchTreeContext)
   const open = openBranches.includes(branch.id)
-  const [editOpen, setEditOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [tracksOpen, setTracksOpen] = useState(false)
   const confirm = useConfirm()
@@ -88,11 +85,6 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
             </IconButton>
           </Tooltip>
         )}
-        <Tooltip title="Edit branch">
-          <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
         <Tooltip title="Open in venue">
           <IconButton size="small" color="primary" href={`/venue/${venueId}/${branch.id}`} target="_blank">
             <OpenInNewIcon fontSize="small" />
@@ -105,7 +97,6 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
         </Tooltip>
       </Stack>
 
-      <BranchEditForm branch={branch} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
       {canAdd && (
         <BranchCreateForm
           venueId={venueId}

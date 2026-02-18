@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { ThemeProvider } from '@mui/material/styles'
 import { ConfirmProvider } from 'material-ui-confirm'
 
+import { SnackbarProvider } from '$/hooks/useSnackbar'
 import theme from '$/theme'
 
 const ThemeRegistry = ({ children }: { children: React.ReactNode }) => (
@@ -17,7 +18,7 @@ const ThemeRegistry = ({ children }: { children: React.ReactNode }) => (
           confirmationButtonProps: { color: 'error' },
         }}
       >
-        {children}
+        <SnackbarProvider>{children}</SnackbarProvider>
       </ConfirmProvider>
     </ThemeProvider>
   </AppRouterCacheProvider>

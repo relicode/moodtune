@@ -151,30 +151,6 @@ export const deleteBranchAction = async (
   return { success: true }
 }
 
-export const updateBranchAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
-  const auth = await requireAdmin()
-  if ('error' in auth) return auth.error
-
-  const branchId = formData.get('branchId') as string
-  const name = formData.get('name') as string
-  const imageFile = formData.get('image') as File | null
-
-  const updates: Partial<{ name: string; imagePath: string }> = {}
-  if (name) updates.name = name
-
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    updates.imagePath = objectName
-  }
-
-  await updateBranch(branchId, updates)
-  revalidatePath('/admin')
-  return { success: true }
-}
-
 export const updateTrackAction = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error

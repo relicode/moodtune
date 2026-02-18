@@ -41,8 +41,11 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
     return new Response('Not found', { status: 404 })
   }
 
-  const trackIds = await listAll(`branch:${branchId}:tracks`)
-  if (!trackIds.includes(trackId)) {
+  const [trackIds, randomTrackIds] = await Promise.all([
+    listAll(`branch:${branchId}:tracks`),
+    listAll(`branch:${branchId}:randomTracks`),
+  ])
+  if (!trackIds.includes(trackId) && !randomTrackIds.includes(trackId)) {
     return new Response('Not found', { status: 404 })
   }
 

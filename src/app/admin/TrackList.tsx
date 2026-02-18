@@ -13,6 +13,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useState } from 'react'
 
 import { removeTrackAction } from '$/actions/admin'
+import { formatTime } from '$/lib/utils'
 import type { Track } from '$/types'
 import TrackEditForm from './TrackEditForm'
 
@@ -21,12 +22,6 @@ type TrackListProps = {
   refreshKey: number
   pool?: 'main' | 'random'
   onDurationChange?: (totalSeconds: number) => void
-}
-
-const formatDuration = (seconds: number) => {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 type TrackItemProps = {
@@ -67,7 +62,7 @@ const TrackItem = ({ branchId, track, pool, onChanged }: TrackItemProps) => {
       >
         <ListItemText
           primary={track.title}
-          secondary={`${track.artist || 'Unknown'} • ${formatDuration(track.duration)}`}
+          secondary={`${track.artist || 'Unknown'} • ${formatTime(track.duration)}`}
         />
       </ListItem>
       <TrackEditForm track={track} open={editOpen} onClose={() => setEditOpen(false)} onUpdated={onChanged} />
