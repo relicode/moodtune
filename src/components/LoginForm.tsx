@@ -7,11 +7,11 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useActionState } from 'react'
 
-import type { LoginFormState } from '$/types'
+import type { ActionResult } from '$/types'
 
 type LoginFormProps = {
   title: string
-  action: (prev: LoginFormState, formData: FormData) => Promise<LoginFormState>
+  action: (prev: ActionResult, formData: FormData) => Promise<ActionResult>
 }
 
 const LoginForm = ({ title, action }: LoginFormProps) => {

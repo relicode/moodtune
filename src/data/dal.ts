@@ -32,7 +32,7 @@ const deserialize = <T>(data: Record<string, string>, schema: Schema): T => {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(data)) {
     if (schema[key] === 'nullable') {
-      result[key] = value || null
+      result[key] = value || undefined
     } else if (schema[key] === 'number') {
       result[key] = parseFloat(value) || 0
     } else if (schema[key] === 'boolean') {

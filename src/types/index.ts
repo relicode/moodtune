@@ -1,4 +1,7 @@
-export type UserRole = 'admin' | 'user'
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
 
 export type User = {
   id: string
@@ -8,12 +11,12 @@ export type User = {
   createdAt: string
 }
 
-export type SessionPayload = {
+export type SessionPayload = Readonly<{
   userId: string
   username: string
   role: UserRole
-  venueIds: string[]
-}
+  venueIds: readonly string[]
+}>
 
 export type Venue = {
   id: string
@@ -22,23 +25,32 @@ export type Venue = {
   createdAt: string
 }
 
-export type BranchType = 'folder' | 'playlist'
+export enum BranchType {
+  FOLDER = 'FOLDER',
+  PLAYLIST = 'PLAYLIST',
+}
 
-export type PlaylistUiOption = 'SHOW_TRACK_NAMES' | 'SHOW_CONTROLS_RANDOM' | 'SHOW_CONTROLS_SHUFFLE'
+export enum PlaylistUiOption {
+  SHUFFLE = 'SHUFFLE',
+  SHUFFLE_VISIBLE_TO_USER = 'SHUFFLE_VISIBLE_TO_USER',
+  SHOW_TRACK_NAMES = 'SHOW_TRACK_NAMES',
+  SHOW_CONTROLS_RANDOM = 'SHOW_CONTROLS_RANDOM',
+  SHOW_CONTROLS_SHUFFLE = 'SHOW_CONTROLS_SHUFFLE',
+}
 
-export type Branch = {
+type BranchBase = {
   id: string
   venueId: string
-  parentId: string | null
+  parentId?: string
   name: string
-  type: BranchType
-  imagePath: string | null
-  random: number
-  shuffle: boolean
-  shuffleVisibleToUser: boolean
-  ui: PlaylistUiOption[]
+  imagePath?: string
   createdAt: string
 }
+
+export type Branch<T extends BranchType = BranchType> = BranchBase &
+  (T extends BranchType.PLAYLIST
+    ? { type: BranchType.PLAYLIST; random: number; ui: PlaylistUiOption[] }
+    : { type: BranchType.FOLDER })
 
 export type PlaylistSummary = {
   id: string
@@ -55,30 +67,26 @@ export type Track = {
   createdAt: string
 }
 
-export type PlaylistTrack = {
+type PlaylistTrackBase = {
+  id: string
   url: string
-  name: string
-  artist: string
   duration: number
 }
 
-export type PlaylistResponse = {
+export type PlaylistTrack<A extends boolean = true> = A extends true
+  ? PlaylistTrackBase & { name: string; artist: string }
+  : PlaylistTrackBase
+
+export type Playlist<A extends boolean = true> = {
   id: string
   name: string
-  tracks: PlaylistTrack[]
-  randomTracks: PlaylistTrack[]
+  tracks: PlaylistTrack<A>[]
+  randomTracks: PlaylistTrack<A>[]
   randomTrackProbability: number
-  shuffle: boolean
-  shuffleVisibleToUser: boolean
   ui: PlaylistUiOption[]
 }
 
 export type ActionResult = {
-  success: boolean
-  error?: string
-}
-
-export type LoginFormState = {
   success: boolean
   error?: string
 }

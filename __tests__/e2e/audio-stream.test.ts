@@ -6,6 +6,7 @@ import { createBranch } from '$/data/branches'
 import { AUDIO_BUCKET, uploadFile } from '$/data/minio'
 import { addTrackToBranch, createTrack } from '$/data/tracks'
 import { addRootBranch, createVenue, deleteVenue } from '$/data/venues'
+import { BranchType } from '$/types'
 import { adminCookie, API_BASE, fetchApi, fetchApiUnauthed, userCookie } from './helpers'
 
 const venueIds: string[] = []
@@ -19,7 +20,7 @@ afterAll(async () => {
 const setupAudioTrack = async () => {
   const venue = await createVenue(`Audio Test Venue ${crypto.randomUUID().slice(0, 8)}`, 'audio stream tests')
   venueIds.push(venue.id)
-  const branch = await createBranch(venue.id, null, 'Test Playlist', 'playlist', null)
+  const branch = await createBranch(venue.id, undefined, 'Test Playlist', BranchType.PLAYLIST)
   await addRootBranch(venue.id, branch.id)
 
   const fileName = `test-stream-${crypto.randomUUID()}.opus`

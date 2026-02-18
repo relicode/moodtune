@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { UserRole } from '$/types'
 import type { SessionPayload } from '$/types'
 
 const COOKIE_NAME = 'moodtune-session'
@@ -39,7 +40,7 @@ const proxy = async (request: NextRequest) => {
   const session = token ? await verifyToken(token) : null
 
   if (pathname.startsWith('/admin')) {
-    if (!session || session.role !== 'admin') {
+    if (!session || session.role !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
@@ -50,7 +51,7 @@ const proxy = async (request: NextRequest) => {
     }
 
     const venueId = pathname.split('/')[2]
-    if (session.role !== 'admin' && !session.venueIds?.includes(venueId)) {
+    if (session.role !== UserRole.ADMIN && !session.venueIds?.includes(venueId)) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }

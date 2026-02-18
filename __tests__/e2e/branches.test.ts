@@ -12,6 +12,7 @@ import { AUDIO_BUCKET, getObjectMetadata, IMAGE_BUCKET, uploadFile } from '$/dat
 import redis from '$/data/redis'
 import { addTrackToBranch, createTrack, getTrack } from '$/data/tracks'
 import { addRootBranch, createVenue, deleteVenue, getRootBranchIds } from '$/data/venues'
+import { BranchType } from '$/types'
 import { API_BASE, fetchApi, fetchApiUnauthed, userCookie } from './helpers'
 
 const venueIds: string[] = []
@@ -31,7 +32,7 @@ const setupVenue = async () => {
 describe('branches — data layer', () => {
   it('create root branch', async () => {
     const venue = await setupVenue()
-    const branch = await createBranch(venue.id, null, 'Root', 'folder', null)
+    const branch = await createBranch(venue.id, undefined, 'Root', BranchType.FOLDER)
     await addRootBranch(venue.id, branch.id)
 
     const rootIds = await getRootBranchIds(venue.id)
@@ -40,16 +41,16 @@ describe('branches — data layer', () => {
     const fetched = await getBranch(branch.id)
     expect(fetched).not.toBeNull()
     expect(fetched!.name).toBe('Root')
-    expect(fetched!.type).toBe('folder')
-    expect(fetched!.parentId).toBeNull()
+    expect(fetched!.type).toBe(BranchType.FOLDER)
+    expect(fetched!.parentId).toBeUndefined()
   })
 
   it('create child branch', async () => {
     const venue = await setupVenue()
-    const parent = await createBranch(venue.id, null, 'Parent', 'folder', null)
+    const parent = await createBranch(venue.id, undefined, 'Parent', BranchType.FOLDER)
     await addRootBranch(venue.id, parent.id)
 
-    const child = await createBranch(venue.id, parent.id, 'Child', 'playlist', null)
+    const child = await createBranch(venue.id, parent.id, 'Child', BranchType.PLAYLIST)
     await addChildBranch(parent.id, child.id)
 
     const children = await getChildBranches(parent.id)
@@ -60,7 +61,7 @@ describe('branches — data layer', () => {
 
   it('update branch', async () => {
     const venue = await setupVenue()
-    const branch = await createBranch(venue.id, null, 'Old Name', 'folder', null)
+    const branch = await createBranch(venue.id, undefined, 'Old Name', BranchType.FOLDER)
 
     await updateBranch(branch.id, { name: 'New Name' })
     const fetched = await getBranch(branch.id)
@@ -69,7 +70,7 @@ describe('branches — data layer', () => {
 
   it('delete leaf branch', async () => {
     const venue = await setupVenue()
-    const branch = await createBranch(venue.id, null, 'Leaf', 'playlist', null)
+    const branch = await createBranch(venue.id, undefined, 'Leaf', BranchType.PLAYLIST)
 
     await deleteBranchRecursive(branch.id)
     expect(await getBranch(branch.id)).toBeNull()
@@ -79,14 +80,14 @@ describe('branches — data layer', () => {
     const venue = await setupVenue()
 
     // Build: folder → folder → playlist with track + images
-    const root = await createBranch(venue.id, null, 'Root', 'folder', null)
+    const root = await createBranch(venue.id, undefined, 'Root', BranchType.FOLDER)
     await addRootBranch(venue.id, root.id)
 
-    const mid = await createBranch(venue.id, root.id, 'Mid', 'folder', null)
+    const mid = await createBranch(venue.id, root.id, 'Mid', BranchType.FOLDER)
     await addChildBranch(root.id, mid.id)
 
     const imagePath = `test-branch-${root.id}.jpg`
-    const leaf = await createBranch(venue.id, mid.id, 'Leaf', 'playlist', imagePath)
+    const leaf = await createBranch(venue.id, mid.id, 'Leaf', BranchType.PLAYLIST, imagePath)
     await addChildBranch(mid.id, leaf.id)
 
     await uploadFile(IMAGE_BUCKET, imagePath, Buffer.from('fake-image'), 'image/jpeg')
@@ -121,7 +122,7 @@ describe('branches — data layer', () => {
 describe('branches — HTTP routes', () => {
   it('GET /api/admin/branches/[venueId] returns root branches', async () => {
     const venue = await setupVenue()
-    const branch = await createBranch(venue.id, null, 'HTTP Root', 'folder', null)
+    const branch = await createBranch(venue.id, undefined, 'HTTP Root', BranchType.FOLDER)
     await addRootBranch(venue.id, branch.id)
 
     const res = await fetchApi(`/api/admin/branches/${venue.id}`)
@@ -132,15 +133,15 @@ describe('branches — HTTP routes', () => {
     const found = data.branches.find((b: { id: string }) => b.id === branch.id)
     expect(found).toBeDefined()
     expect(found.name).toBe('HTTP Root')
-    expect(found.type).toBe('folder')
+    expect(found.type).toBe(BranchType.FOLDER)
   })
 
   it('GET /api/admin/branches/[venueId]?parentId=X returns children', async () => {
     const venue = await setupVenue()
-    const parent = await createBranch(venue.id, null, 'Parent', 'folder', null)
+    const parent = await createBranch(venue.id, undefined, 'Parent', BranchType.FOLDER)
     await addRootBranch(venue.id, parent.id)
 
-    const child = await createBranch(venue.id, parent.id, 'Child', 'playlist', null)
+    const child = await createBranch(venue.id, parent.id, 'Child', BranchType.PLAYLIST)
     await addChildBranch(parent.id, child.id)
 
     const res = await fetchApi(`/api/admin/branches/${venue.id}?parentId=${parent.id}`)

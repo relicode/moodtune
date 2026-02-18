@@ -10,12 +10,13 @@ import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

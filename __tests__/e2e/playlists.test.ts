@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { createBranch } from '$/data/branches'
 import { addTrackToBranch, createTrack } from '$/data/tracks'
 import { addRootBranch, createVenue, deleteVenue } from '$/data/venues'
+import { BranchType } from '$/types'
 import { API_BASE, fetchApi, fetchApiUnauthed, userCookie } from './helpers'
 
 const venueIds: string[] = []
@@ -16,7 +17,7 @@ afterAll(async () => {
 const setupPlaylist = async () => {
   const venue = await createVenue(`Playlist Test Venue ${crypto.randomUUID().slice(0, 8)}`, 'playlist tests')
   venueIds.push(venue.id)
-  const branch = await createBranch(venue.id, null, 'Test Playlist', 'playlist', null)
+  const branch = await createBranch(venue.id, undefined, 'Test Playlist', BranchType.PLAYLIST)
   await addRootBranch(venue.id, branch.id)
   const track = await createTrack('Test Title', 'Test Artist', `test-${crypto.randomUUID()}.opus`, 120.5)
   await addTrackToBranch(branch.id, track.id)
@@ -37,10 +38,10 @@ describe('GET /api/playlist/[playlistId]', () => {
     const t = data.tracks[0]
     expect(t.url).toBe(`/api/audio/${branch.id}/${track.id}`)
     expect(t.id).toBe(track.id)
-    expect(t.title).toBe('Test Title')
+    expect(t.name).toBe('Test Title')
     expect(t.artist).toBe('Test Artist')
     expect(t.duration).toBe(120.5)
-    expect(t.createdAt).toEqual(expect.any(String))
+    expect(t.createdAt).toBeUndefined()
     expect(t.fileName).toBeUndefined()
   })
 
@@ -59,7 +60,7 @@ describe('GET /api/playlist/[playlistId]', () => {
     const t = data.tracks[0]
     expect(t.url).toMatch(/^\/api\/audio\//)
     expect(t.duration).toBe(120.5)
-    expect(Object.keys(t)).toEqual(['url', 'duration'])
+    expect(Object.keys(t)).toEqual(['id', 'url', 'duration'])
   })
 
   it('user without venue access gets 403', async () => {
@@ -81,7 +82,7 @@ describe('GET /api/playlist/[playlistId]', () => {
   it('folder branch returns 404', async () => {
     const venue = await createVenue(`Folder Test Venue ${crypto.randomUUID().slice(0, 8)}`, 'folder test')
     venueIds.push(venue.id)
-    const folder = await createBranch(venue.id, null, 'A Folder', 'folder', null)
+    const folder = await createBranch(venue.id, undefined, 'A Folder', BranchType.FOLDER)
     await addRootBranch(venue.id, folder.id)
 
     const res = await fetchApi(`/api/playlist/${folder.id}`)

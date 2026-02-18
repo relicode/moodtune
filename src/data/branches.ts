@@ -1,6 +1,7 @@
 import 'server-only'
 
-import type { Branch, BranchType } from '$/types'
+import { BranchType } from '$/types'
+import type { Branch } from '$/types'
 import { hashCreate, hashGet, hashSet, listAll, listGetAll, listPush, listRemove } from './dal'
 import { IMAGE_BUCKET, removeFile } from './minio'
 import redis from './redis'
@@ -11,27 +12,18 @@ const schema = {
   parentId: 'nullable',
   imagePath: 'nullable',
   random: 'number',
-  shuffle: 'boolean',
-  shuffleVisibleToUser: 'boolean',
   ui: 'json',
 } as const
 
 export const createBranch = async (
   venueId: string,
-  parentId: string | null,
+  parentId: string | undefined,
   name: string,
   type: BranchType,
-  imagePath: string | null,
+  imagePath?: string,
   random = 0,
-  shuffle = true,
-  shuffleVisibleToUser = true,
-  ui: string[] = []
-): Promise<Branch> =>
-  hashCreate<Branch>(
-    'branch',
-    { venueId, parentId, name, type, imagePath, random, shuffle, shuffleVisibleToUser, ui },
-    schema
-  )
+  ui: Branch<BranchType.PLAYLIST>['ui'] = []
+): Promise<Branch> => hashCreate<Branch>('branch', { venueId, parentId, name, type, imagePath, random, ui }, schema)
 
 export const getBranch = async (id: string): Promise<Branch | null> => hashGet<Branch>(`branch:${id}`, schema)
 
@@ -76,19 +68,19 @@ export const deleteBranchRecursive = async (id: string) => {
 // Max folder nesting depth to prevent runaway recursion and circular references
 const MAX_COLLECT_DEPTH = 10
 
-const collectPlaylists = async (branchId: string, depth = 0): Promise<Branch[]> => {
+const collectPlaylists = async (branchId: string, depth = 0): Promise<Branch<BranchType.PLAYLIST>[]> => {
   if (depth >= MAX_COLLECT_DEPTH) return []
 
   const branch = await getBranch(branchId)
   if (!branch) return []
-  if (branch.type === 'playlist') return [branch]
+  if (branch.type === BranchType.PLAYLIST) return [branch]
 
   const children = await getChildBranches(branchId)
   const nested = await Promise.all(children.map((c) => collectPlaylists(c.id, depth + 1)))
   return nested.flat()
 }
 
-export const getRecentPlaylists = async (venueIds: string[]): Promise<Branch[]> => {
+export const getRecentPlaylists = async (venueIds: readonly string[]): Promise<Branch<BranchType.PLAYLIST>[]> => {
   const rootIdArrays = await Promise.all(venueIds.map(getRootBranchIds))
   const allRootIds = rootIdArrays.flat()
   const playlistArrays = await Promise.all(allRootIds.map(collectPlaylists))
@@ -100,15 +92,12 @@ export const getRecentPlaylists = async (venueIds: string[]): Promise<Branch[]> 
 
 export const updateBranch = async (
   id: string,
-  updates: Partial<Pick<Branch, 'name' | 'type' | 'imagePath' | 'random' | 'shuffle' | 'shuffleVisibleToUser' | 'ui'>>
+  updates: Partial<Pick<Branch<BranchType.PLAYLIST>, 'name' | 'imagePath' | 'random' | 'ui'>>
 ) => {
   const mapped: Record<string, unknown> = {}
   if (updates.name !== undefined) mapped.name = updates.name
-  if (updates.type !== undefined) mapped.type = updates.type
   if (updates.imagePath !== undefined) mapped.imagePath = updates.imagePath
   if (updates.random !== undefined) mapped.random = updates.random
-  if (updates.shuffle !== undefined) mapped.shuffle = updates.shuffle
-  if (updates.shuffleVisibleToUser !== undefined) mapped.shuffleVisibleToUser = updates.shuffleVisibleToUser
   if (updates.ui !== undefined) mapped.ui = updates.ui
 
   if (Object.keys(mapped).length > 0) {

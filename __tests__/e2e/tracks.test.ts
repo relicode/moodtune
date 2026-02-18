@@ -14,6 +14,7 @@ import {
   updateTrack,
 } from '$/data/tracks'
 import { addRootBranch, createVenue, deleteVenue } from '$/data/venues'
+import { BranchType } from '$/types'
 import { API_BASE, fetchApi, fetchApiUnauthed, userCookie } from './helpers'
 
 const venueIds: string[] = []
@@ -27,7 +28,7 @@ afterAll(async () => {
 const setupVenueWithBranch = async () => {
   const venue = await createVenue(`Track Test Venue ${crypto.randomUUID().slice(0, 8)}`, 'track tests')
   venueIds.push(venue.id)
-  const branch = await createBranch(venue.id, null, 'Playlist', 'playlist', null)
+  const branch = await createBranch(venue.id, undefined, 'Playlist', BranchType.PLAYLIST)
   await addRootBranch(venue.id, branch.id)
   return { venue, branch }
 }

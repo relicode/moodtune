@@ -7,10 +7,27 @@ import AudioPlayer from '$/components/AudioPlayer'
 import BranchGrid from '$/components/BranchGrid'
 import Link from '$/components/Link'
 import { getBranch, getChildBranches } from '$/data/branches'
+import { getPlaylistTracks, getRandomTracks } from '$/data/tracks'
 import { getVenue } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
+import { BranchType, PlaylistUiOption, UserRole } from '$/types'
+import type { Playlist, PlaylistTrack, Track } from '$/types'
 
 const MAX_ANCESTOR_DEPTH = 10
+
+const mapTrack = (branchId: string, track: Track): PlaylistTrack => ({
+  id: track.id,
+  url: `/api/audio/${branchId}/${track.id}`,
+  name: track.title,
+  artist: track.artist,
+  duration: track.duration,
+})
+
+const stripTrack = (track: PlaylistTrack): PlaylistTrack<false> => ({
+  id: track.id,
+  url: track.url,
+  duration: track.duration,
+})
 
 const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branchId: string }> }) => {
   const { venueId, branchId } = await params
@@ -53,7 +70,7 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
     </Stack>
   )
 
-  if (branch.type === 'folder') {
+  if (branch.type === BranchType.FOLDER) {
     const children = await getChildBranches(branchId)
     const branchItems = await Promise.all(
       children.map(async (child) => ({
@@ -71,12 +88,36 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
   }
 
   const session = await getSessionFromCookie()
-  const isAdmin = session?.role === 'admin'
+  const isAdmin = session?.role === UserRole.ADMIN
+
+  const [tracks, randomTracks] = await Promise.all([getPlaylistTracks(branchId), getRandomTracks(branchId)])
+
+  const showNames = isAdmin || branch.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
+  const mapped = tracks.map((t) => mapTrack(branchId, t))
+  const mappedRandom = randomTracks.map((t) => mapTrack(branchId, t))
+
+  const playlist: Playlist<boolean> = showNames
+    ? {
+        id: branch.id,
+        name: branch.name,
+        tracks: mapped,
+        randomTracks: mappedRandom,
+        randomTrackProbability: branch.random,
+        ui: branch.ui,
+      }
+    : {
+        id: branch.id,
+        name: branch.name,
+        tracks: mapped.map(stripTrack),
+        randomTracks: mappedRandom.map(stripTrack),
+        randomTrackProbability: branch.random,
+        ui: branch.ui,
+      }
 
   return (
     <Stack spacing={2} sx={!isAdmin ? { flex: 1, justifyContent: 'center' } : undefined}>
       {header}
-      <AudioPlayer branchId={branchId} role={session?.role ?? 'user'} />
+      <AudioPlayer playlist={playlist} isAdmin={isAdmin} />
     </Stack>
   )
 }

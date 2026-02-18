@@ -5,9 +5,10 @@ import { redirect } from 'next/navigation'
 import { getUserByUsername, verifyPassword } from '$/data/users'
 import { getAllVenues, getVenueUserIds } from '$/data/venues'
 import { createSession, deleteSessionCookie, setSessionCookie } from '$/lib/session'
-import type { LoginFormState } from '$/types'
+import { UserRole } from '$/types'
+import type { ActionResult } from '$/types'
 
-export const login = async (_prev: LoginFormState, formData: FormData): Promise<LoginFormState> => {
+export const login = async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
 
@@ -27,7 +28,7 @@ export const login = async (_prev: LoginFormState, formData: FormData): Promise<
     return { success: false, error: 'Invalid credentials' }
   }
 
-  if (user.role === 'admin') {
+  if (user.role === UserRole.ADMIN) {
     const token = await createSession({
       userId: user.id,
       username: user.username,

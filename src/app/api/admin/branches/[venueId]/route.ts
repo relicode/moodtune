@@ -3,10 +3,11 @@ import { NextResponse } from 'next/server'
 import { getBranch, getChildBranches } from '$/data/branches'
 import { getRootBranchIds } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
 export const GET = async (request: Request, { params }: { params: Promise<{ venueId: string }> }) => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

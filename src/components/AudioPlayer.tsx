@@ -9,23 +9,23 @@ import VolumeDownIcon from '@mui/icons-material/VolumeDown'
 import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 import VolumeUpIcon from '@mui/icons-material/VolumeUp'
 import Box from '@mui/material/Box'
-import CircularProgress from '@mui/material/CircularProgress'
 import Container from '@mui/material/Container'
 import IconButton from '@mui/material/IconButton'
 import LinearProgress from '@mui/material/LinearProgress'
 import List from '@mui/material/List'
-import Slider from '@mui/material/Slider'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
+import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
-import type { PlaylistTrack, UserRole } from '$/types'
+import { PlaylistUiOption } from '$/types'
+import type { Playlist, PlaylistTrack } from '$/types'
 
 type AudioPlayerProps = {
-  branchId: string
-  role: UserRole
+  playlist: Playlist<boolean>
+  isAdmin: boolean
 }
 
 const formatTime = (seconds: number) => {
@@ -34,11 +34,45 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
-  const isAdmin = role === 'admin'
+const shuffle = <T,>(array: T[]): T[] => {
+  const copy = [...array]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
+type AnyTrack = PlaylistTrack<boolean>
+
+const generateTracklist = (playlist: Playlist<boolean>): AnyTrack[] => {
+  let main: AnyTrack[] = [...playlist.tracks]
+  let random: AnyTrack[] = [...playlist.randomTracks]
+
+  if (playlist.ui.includes(PlaylistUiOption.SHUFFLE)) {
+    main = shuffle(main)
+    random = shuffle(random)
+  }
+
+  if (random.length === 0 || playlist.randomTrackProbability === 0) return main
+
+  const result: AnyTrack[] = []
+  let randomIndex = 0
+
+  for (const track of main) {
+    result.push(track)
+    if (random.length > 0 && Math.random() * 100 < playlist.randomTrackProbability) {
+      result.push(random[randomIndex % random.length])
+      randomIndex++
+    }
+  }
+
+  return result
+}
+
+const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement>(null)
-  const [tracks, setTracks] = useState<PlaylistTrack[]>([])
-  const [loading, setLoading] = useState(true)
+  const [tracks] = useState<AnyTrack[]>(() => generateTracklist(playlist))
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -46,38 +80,7 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
   const [volume, setVolume] = useState(100)
   const [muted, setMuted] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchTracks = async () => {
-      setLoading(true)
-      setCurrentIndex(0)
-      setIsPlaying(false)
-      setCurrentTime(0)
-      setDuration(0)
-
-      try {
-        const res = await fetch(`/api/playlist/${branchId}`)
-        if (cancelled) return
-
-        if (res.ok) {
-          const data = await res.json()
-          setTracks(data.tracks)
-        } else {
-          setTracks([])
-        }
-      } catch {
-        if (!cancelled) setTracks([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchTracks()
-    return () => {
-      cancelled = true
-    }
-  }, [branchId])
+  const showNames = isAdmin || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
 
   const currentTrack = tracks[currentIndex]
   const audioSrc = currentTrack?.url ?? null
@@ -171,14 +174,6 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
     audio.currentTime = ratio * duration
   }
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
-
   if (tracks.length === 0) {
     return (
       <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
@@ -194,14 +189,14 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
       <audio ref={audioRef} src={audioSrc || undefined} />
 
       <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
-        {isAdmin && (
+        {showNames && currentTrack && 'name' in currentTrack && (
           <>
             <Typography variant="subtitle1" fontWeight="bold">
-              {currentTrack?.name ?? `Track ${currentIndex + 1}`}
+              {(currentTrack as PlaylistTrack<true>).name}
             </Typography>
-            {currentTrack?.artist && (
+            {(currentTrack as PlaylistTrack<true>).artist && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
-                {currentTrack.artist}
+                {(currentTrack as PlaylistTrack<true>).artist}
               </Typography>
             )}
           </>
@@ -265,11 +260,14 @@ const AudioPlayer = ({ branchId, role }: AudioPlayerProps) => {
         </Stack>
       </Stack>
 
-      {isAdmin && (
+      {showNames && (
         <List>
           {tracks.map((track, index) => (
-            <ListItemButton key={index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
-              <ListItemText primary={track.name ?? `Track ${index + 1}`} secondary={track.artist || undefined} />
+            <ListItemButton key={track.id + index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
+              <ListItemText
+                primary={'name' in track ? (track as PlaylistTrack<true>).name : `Track ${index + 1}`}
+                secondary={'artist' in track ? (track as PlaylistTrack<true>).artist || undefined : undefined}
+              />
               <Typography variant="caption" color="text.secondary">
                 {formatTime(track.duration)}
               </Typography>

@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState, useRef } from 'react'
 
 import { createBranchAction } from '$/actions/admin'
+import { BranchType } from '$/types'
 import type { ActionResult } from '$/types'
 import ImagePicker from './ImagePicker'
 
@@ -56,12 +57,12 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
               <TextField name="name" label="Name" size="small" required autoComplete="off" sx={{ flex: 5 }} />
               <FormControl size="small" sx={{ flex: 3 }}>
                 <InputLabel>Type</InputLabel>
-                <Select name="type" label="Type" defaultValue="folder">
-                  <MenuItem value="folder">
+                <Select name="type" label="Type" defaultValue={BranchType.FOLDER}>
+                  <MenuItem value={BranchType.FOLDER}>
                     <FolderIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
                     Folder
                   </MenuItem>
-                  <MenuItem value="playlist">
+                  <MenuItem value={BranchType.PLAYLIST}>
                     <QueueMusicIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
                     Playlist
                   </MenuItem>

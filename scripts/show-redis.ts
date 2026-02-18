@@ -11,10 +11,10 @@ const printBranch = async (branchId: string, indent: number) => {
   if (!branch.id) return
 
   const prefix = '  '.repeat(indent)
-  const icon = branch.type === 'folder' ? '📁' : '🎵'
+  const icon = branch.type === 'FOLDER' ? '📁' : '🎵'
   console.log(`${prefix}${icon} ${chalk.bold(branch.name)} ${shortId(branch.id)} ${chalk.dim(branch.type)}`)
 
-  if (branch.type === 'playlist') {
+  if (branch.type === 'PLAYLIST') {
     const trackIds = await redis.lrange(`branch:${branchId}:tracks`, 0, -1)
     for (const trackId of trackIds) {
       const track = await redis.hgetall(`track:${trackId}`)
@@ -43,7 +43,7 @@ const showRedis = async () => {
   for (const id of userIds) {
     const user = await redis.hgetall(`user:${id}`)
     if (!user.id) continue
-    const role = user.role === 'admin' ? chalk.magenta('admin') : chalk.green('user')
+    const role = user.role === 'ADMIN' ? chalk.magenta('admin') : chalk.green('user')
     console.log(`  ${chalk.bold(user.username)} ${shortId(user.id)} ${role} ${chalk.dim(user.createdAt)}`)
   }
 

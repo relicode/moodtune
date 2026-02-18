@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState } from 'react'
 
 import { updateBranchAction } from '$/actions/admin'
+import { BranchType } from '$/types'
 import type { ActionResult, Branch } from '$/types'
 import ImagePicker from './ImagePicker'
 
@@ -37,7 +38,7 @@ const BranchEditForm = ({ branch, open, onClose, onUpdated }: BranchEditFormProp
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <Stack component="form" action={formAction}>
-        <DialogTitle>{branch.type === 'playlist' ? 'Edit playlist' : 'Edit branch'}</DialogTitle>
+        <DialogTitle>{branch.type === BranchType.PLAYLIST ? 'Edit playlist' : 'Edit branch'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField name="name" label="Name" size="small" defaultValue={branch.name} required autoComplete="off" />

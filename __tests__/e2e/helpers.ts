@@ -10,12 +10,12 @@ const signToken = async (payload: Record<string, unknown>) => {
 }
 
 export const adminCookie = async () => {
-  const token = await signToken({ userId: 'test-admin', username: 'test-admin', role: 'admin', venueIds: [] })
+  const token = await signToken({ userId: 'test-admin', username: 'test-admin', role: 'ADMIN', venueIds: [] })
   return `moodtune-session=${token}`
 }
 
 export const userCookie = async (venueIds: string[] = []) => {
-  const token = await signToken({ userId: 'test-user', username: 'test-user', role: 'user', venueIds })
+  const token = await signToken({ userId: 'test-user', username: 'test-user', role: 'USER', venueIds })
   return `moodtune-session=${token}`
 }
 

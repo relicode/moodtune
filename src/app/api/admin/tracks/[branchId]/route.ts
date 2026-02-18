@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 
 import { getPlaylistTracks, getRandomTracks } from '$/data/tracks'
 import { getSessionFromCookie } from '$/lib/session'
+import { UserRole } from '$/types'
 
 export const GET = async (request: Request, { params }: { params: Promise<{ branchId: string }> }) => {
   const session = await getSessionFromCookie()
-  if (!session || session.role !== 'admin') {
+  if (!session || session.role !== UserRole.ADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

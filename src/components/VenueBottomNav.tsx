@@ -14,7 +14,8 @@ import { useEffect, useState } from 'react'
 
 import { logout } from '$/actions/auth'
 import { getParentBranchInfo } from '$/actions/branches'
-import type { PlaylistSummary, UserRole } from '$/types'
+import { UserRole } from '$/types'
+import type { PlaylistSummary } from '$/types'
 
 type VenueBottomNavProps = {
   playlists: PlaylistSummary[]
@@ -72,12 +73,8 @@ const VenueBottomNav = ({ playlists, role }: VenueBottomNavProps) => {
         <BottomNavigationAction
           label="Logout"
           icon={
-            role === 'admin' ? (
-              <Badge
-                badgeContent={<StarIcon sx={{ fontSize: '0.75rem' }} />}
-                color="warning"
-                overlap="circular"
-              >
+            role === UserRole.ADMIN ? (
+              <Badge badgeContent={<StarIcon sx={{ fontSize: '0.75rem' }} />} color="warning" overlap="circular">
                 <LogoutIcon />
               </Badge>
             ) : (

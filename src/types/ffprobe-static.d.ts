@@ -1,4 +1,5 @@
+const ffprobe: { path: string }
+
 declare module 'ffprobe-static' {
-  const ffprobe: { path: string }
   export default ffprobe
 }
