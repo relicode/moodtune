@@ -13,9 +13,10 @@ import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
-import { useActionState, useRef } from 'react'
+import { useActionState, useRef, useState } from 'react'
 
 import { createBranchAction } from '$/actions/admin'
+import { useSnackbar } from '$/hooks/useSnackbar'
 import { BranchType } from '$/types'
 import type { ActionResult } from '$/types'
 import ImagePicker from './ImagePicker'
@@ -30,19 +31,27 @@ type BranchCreateFormProps = {
 
 const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: BranchCreateFormProps) => {
   const formRef = useRef<HTMLFormElement>(null)
+  const [imageKey, setImageKey] = useState(0)
+  const { showSnackbar } = useSnackbar()
   const label = parentId ? 'New sub-branch' : 'New branch'
 
   const [, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venueId)
       if (parentId) formData.set('parentId', parentId)
-      const result = await createBranchAction(prev, formData)
-      if (result.success) {
-        formRef.current?.reset()
-        onClose()
-        onCreated()
+      try {
+        const result = await createBranchAction(prev, formData)
+        if (result.success) {
+          formRef.current?.reset()
+          onClose()
+          onCreated()
+        }
+        return result
+      } catch {
+        showSnackbar('Failed to upload image', 'error')
+        setImageKey((k) => k + 1)
+        return { success: false, error: 'Upload failed' }
       }
-      return result
     },
     { success: false }
   )
@@ -69,7 +78,7 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
                 </Select>
               </FormControl>
             </Stack>
-            <ImagePicker name="image" />
+            <ImagePicker key={imageKey} name="image" />
           </Stack>
         </DialogContent>
         <DialogActions>

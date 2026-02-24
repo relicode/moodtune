@@ -21,6 +21,7 @@ import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
 import { setBranchRandomAction, updateBranchImageAction, updatePlaylistSettingsAction } from '$/actions/admin'
+import { useSnackbar } from '$/hooks/useSnackbar'
 import { getImageUrl } from '$/actions/media'
 import { formatDuration, formatTime } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
@@ -57,6 +58,7 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const imageUrl = localPreview ?? (branch.imagePath ? getImageUrl(branch.imagePath) : null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const { showSnackbar } = useSnackbar()
   const [random, setRandom] = useState(branch.random ?? 0)
   const [ui, setUi] = useState<PlaylistUiOption[]>(branch.ui ?? [])
   const [mainDuration, setMainDuration] = useState(0)
@@ -79,11 +81,23 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
     const file = e.target.files?.[0]
     if (!file) return
     if (localPreview) URL.revokeObjectURL(localPreview)
-    setLocalPreview(URL.createObjectURL(file))
+    const previewUrl = URL.createObjectURL(file)
+    setLocalPreview(previewUrl)
+    e.target.value = ''
     const formData = new FormData()
     formData.set('image', file)
-    await updateBranchImageAction(branch.id, formData)
-    e.target.value = ''
+    try {
+      const result = await updateBranchImageAction(branch.id, formData)
+      if (!result.success) {
+        URL.revokeObjectURL(previewUrl)
+        setLocalPreview(null)
+        showSnackbar(result.error ?? 'Failed to upload image', 'error')
+      }
+    } catch {
+      URL.revokeObjectURL(previewUrl)
+      setLocalPreview(null)
+      showSnackbar('Failed to upload image', 'error')
+    }
   }
 
   return (
