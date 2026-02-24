@@ -1,7 +1,10 @@
 #!/usr/bin/env -S tsx
+import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import Redis from 'ioredis'
 import * as Minio from 'minio'
+
+loadEnvConfig(process.cwd())
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
 

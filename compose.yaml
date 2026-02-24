@@ -1,5 +1,5 @@
 services:
-  app:
+  moodtune-app:
     image: node:24-alpine
     restart: unless-stopped
     profiles: [app]

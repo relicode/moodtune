@@ -1,13 +1,11 @@
-# Production overlay — apply with: ./prod.sh up -d
+# Production overlay — included by ~/services/compose.yaml or used standalone via ./prod.sh
 #
-# Security notes:
-# - Redis password is passed via --requirepass command arg, which is visible in
-#   docker inspect and /proc/<pid>/cmdline. This is a Redis limitation. Mitigated
-#   by running Redis on an internal network with no host port binding.
-# - REDIS_PASSWORD must be set in .env; prod.sh validates this before starting.
+# All services are bound to 127.0.0.1 only.
+# JWT_SECRET must be set in .env; prod.sh validates this before starting.
 
 services:
-  app:
+  moodtune-app:
+    profiles: !override []
     user: '1001:100'
     deploy:
       resources:
@@ -21,10 +19,9 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
     networks:
-      - frontend
-      - backend
+      - caddy
+      - default
     depends_on:
       redis:
         condition: service_healthy
@@ -32,51 +29,17 @@ services:
         condition: service_healthy
 
   redis:
-    ports: !override []
-    expose: !override
-      - 6379
-    networks:
-      - backend
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', '--no-auth-warning', 'ping']
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
-    command:
-      - redis-server
-      - --appendonly
-      - 'yes'
-      - --protected-mode
-      - 'yes'
-      - --requirepass
-      - ${REDIS_PASSWORD}
-      - --rename-command
-      - FLUSHALL
-      - ''
-      - --rename-command
-      - FLUSHDB
-      - ''
-      - --rename-command
-      - DEBUG
-      - ''
-      - --rename-command
-      - CONFIG
-      - ''
-      - --rename-command
-      - KEYS
-      - ''
-      - --rename-command
-      - SHUTDOWN
-      - ''
 
   minio:
-    ports: !override []
-    expose: !override
-      - 9000
+    ports: !override
+      - '127.0.0.1:9000:9000'
     command: server /data
-    networks:
-      - backend
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
@@ -85,8 +48,5 @@ services:
       start_period: 10s
 
 networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
-    internal: true
+  caddy:
+    name: caddy

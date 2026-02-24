@@ -2,8 +2,7 @@
 # All env vars (including NEXT_PUBLIC_*) are read from .env — do not use .env.local
 
 # --- Redis ---
-REDIS_URL=redis://localhost:6379 # Redis connection URL (production overlay overrides this to include auth)
-REDIS_PASSWORD= # Redis password (required for production; prod.sh validates this is set)
+REDIS_URL=redis://localhost:6379 # Redis connection URL
 
 # --- MinIO ---
 MINIO_ENDPOINT=localhost # MinIO hostname (overridden to 'minio' in Docker Compose)
@@ -28,8 +27,5 @@ ADMIN_PASSWORD=admin # Default admin password created by db:seed
 # --- Logging ---
 # LOG_LEVEL=debug # Pino log level (trace/debug/info/warn/error/fatal; defaults to debug in dev, info in prod)
 # LOG_DIR=/var/log/moodtune # Log file directory (defaults to ./data/log; overridden in Docker Compose)
-
-# --- Build ---
-# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/ # Private npm registry (optional, used during Docker build)
 
 # vi: filetype=sh sw=2 ts=2 et

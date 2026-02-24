@@ -27,7 +27,7 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
    cp env-template .env
    ```
 
-4. Seed the database (creates admin user and MinIO buckets):
+4. Seed the database (creates admin user and MinIO buckets). `ADMIN_USERNAME` and `ADMIN_PASSWORD` must be set in `.env`:
 
    ```sh
    npm run db:seed
@@ -98,13 +98,56 @@ src/
 ## Docker Compose
 
 ```sh
-docker compose up -d                # Redis + MinIO
+docker compose up -d                # Redis + MinIO (dev)
 npm run build                       # Build standalone output on host
-docker compose --profile app up     # Run the app container
+docker compose --profile app up -d  # Run the app container (dev)
 ```
 
 - **Redis** on port 6379 (persistent with AOF)
 - **MinIO** on port 9000 (API) / 9001 (console)
+- The app service is named `moodtune-app`
+
+## Production Deployment
+
+Production is managed from the root `~/services/compose.yaml`, which includes moodtune via Docker Compose `include`:
+
+```yaml
+# In ~/services/compose.yaml
+include:
+  - path:
+      - ./moodtune/compose.yaml
+      - ./moodtune/compose.production.yaml
+    project_directory: ./moodtune
+    env_file: ./moodtune/.env
+```
+
+The root compose also defines Caddy and a shared `caddy` network. Moodtune's production overlay joins this network so Caddy can reverse proxy to `moodtune-app:3000`.
+
+**Required changes in `~/services/Caddyfile`:**
+
+```
+moodtune.siren.codes {
+  reverse_proxy moodtune-app:3000
+  # Plus: security headers, exploit/bot blocking, access logging
+}
+```
+
+**Required changes in `~/services/compose.yaml`:**
+
+- Caddy must join the `caddy` network (`networks: [default, caddy]`)
+- Define the `caddy` network with `name: caddy`
+
+**Deploy:**
+
+```sh
+cd ~/services
+npm run build --prefix ./moodtune   # Build standalone output
+docker compose up -d                # Start everything (Caddy, moodtune, Redis, MinIO)
+```
+
+**Seed in production** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
+
+`prod.sh` can still be used for standalone operation (validates `JWT_SECRET`).
 
 ## License
 
