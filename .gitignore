@@ -36,8 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# data
-/data/
+# data (keep directories, ignore contents)
+/data/**
+!/data/
+!/data/*/
+!/data/*/.gitignore
 
 # typescript
 *.tsbuildinfo

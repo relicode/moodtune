@@ -94,7 +94,7 @@ describe('tracks — data layer', () => {
 })
 
 describe('tracks — HTTP routes', () => {
-  it('POST /api/admin/upload-track with valid audio', async () => {
+  it('POST /api/admin/track with valid audio', async () => {
     const { branch } = await setupVenueWithBranch()
 
     const audioPath = resolve(__dirname, '../test-data/test-audio.opus')
@@ -104,7 +104,7 @@ describe('tracks — HTTP routes', () => {
     formData.set('branchId', branch.id)
     formData.set('audio', new File([audioBuffer], 'test-audio.opus', { type: 'audio/opus' }))
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -118,7 +118,7 @@ describe('tracks — HTTP routes', () => {
     expect(tracks.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('POST /api/admin/upload-track compresses WAV to M4A', async () => {
+  it('POST /api/admin/track compresses WAV to M4A', async () => {
     const { branch } = await setupVenueWithBranch()
 
     const audioPath = resolve(__dirname, '../test-data/test-audio.wav')
@@ -128,7 +128,7 @@ describe('tracks — HTTP routes', () => {
     formData.set('branchId', branch.id)
     formData.set('audio', new File([audioBuffer], 'test-audio.wav', { type: 'audio/wav' }))
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -140,7 +140,7 @@ describe('tracks — HTTP routes', () => {
     expect(tracks[0].fileName).toMatch(/\.m4a$/)
   })
 
-  it('POST /api/admin/upload-track skips compression for small files', async () => {
+  it('POST /api/admin/track skips compression for small files', async () => {
     const { branch } = await setupVenueWithBranch()
 
     const audioPath = resolve(__dirname, '../test-data/test-audio.opus')
@@ -150,7 +150,7 @@ describe('tracks — HTTP routes', () => {
     formData.set('branchId', branch.id)
     formData.set('audio', new File([audioBuffer], 'test-audio.opus', { type: 'audio/opus' }))
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -162,7 +162,7 @@ describe('tracks — HTTP routes', () => {
     expect(tracks[0].fileName).toMatch(/\.opus$/)
   })
 
-  it('POST /api/admin/upload-track with corrupt file returns 422', async () => {
+  it('POST /api/admin/track with corrupt file returns 422', async () => {
     const { branch } = await setupVenueWithBranch()
     const garbage = Buffer.from(crypto.getRandomValues(new Uint8Array(1024)))
 
@@ -170,7 +170,7 @@ describe('tracks — HTTP routes', () => {
     formData.set('branchId', branch.id)
     formData.set('audio', new File([garbage], 'corrupt.mp3', { type: 'audio/mpeg' }))
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -180,14 +180,14 @@ describe('tracks — HTTP routes', () => {
     expect(data.error).toMatch(/metadata/)
   })
 
-  it('POST /api/admin/upload-track missing branchId returns 400', async () => {
+  it('POST /api/admin/track missing branchId returns 400', async () => {
     const audioPath = resolve(__dirname, '../test-data/test-audio.opus')
     const audioBuffer = await readFile(audioPath)
 
     const formData = new FormData()
     formData.set('audio', new File([audioBuffer], 'test-audio.opus', { type: 'audio/opus' }))
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -195,13 +195,13 @@ describe('tracks — HTTP routes', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/admin/upload-track missing audio returns 400', async () => {
+  it('POST /api/admin/track missing audio returns 400', async () => {
     const { branch } = await setupVenueWithBranch()
 
     const formData = new FormData()
     formData.set('branchId', branch.id)
 
-    const res = await fetchApi('/api/admin/upload-track', {
+    const res = await fetchApi('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -209,12 +209,12 @@ describe('tracks — HTTP routes', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/admin/upload-track without cookie returns 401', async () => {
+  it('POST /api/admin/track without cookie returns 401', async () => {
     const formData = new FormData()
     formData.set('branchId', 'fake')
     formData.set('audio', new File([Buffer.from('fake')], 'test.opus', { type: 'audio/opus' }))
 
-    const res = await fetchApiUnauthed('/api/admin/upload-track', {
+    const res = await fetchApiUnauthed('/api/admin/track', {
       method: 'POST',
       body: formData,
     })
@@ -222,13 +222,13 @@ describe('tracks — HTTP routes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('POST /api/admin/upload-track with user cookie returns 401', async () => {
+  it('POST /api/admin/track with user cookie returns 401', async () => {
     const cookie = await userCookie()
     const formData = new FormData()
     formData.set('branchId', 'fake')
     formData.set('audio', new File([Buffer.from('fake')], 'test.opus', { type: 'audio/opus' }))
 
-    const res = await fetch(`${API_BASE}/api/admin/upload-track`, {
+    const res = await fetch(`${API_BASE}/api/admin/track`, {
       method: 'POST',
       body: formData,
       headers: { cookie },

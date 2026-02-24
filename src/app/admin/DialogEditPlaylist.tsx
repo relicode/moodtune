@@ -20,10 +20,10 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
-import { setBranchRandomAction, updateBranchImageAction, updatePlaylistSettingsAction } from '$/actions/admin'
-import { useSnackbar } from '$/hooks/useSnackbar'
+import { setBranchRandomAction, updateBranchImageAction, updateBranchSettingsAction } from '$/actions/admin'
 import { getImageUrl } from '$/actions/media'
-import { formatDuration, formatTime } from '$/lib/utils'
+import { useSnackbar } from '$/hooks/useSnackbar'
+import { formatDuration } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
 import type { Branch } from '$/types'
 import TrackList from './TrackList'
@@ -74,7 +74,7 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
   const toggleUiOption = (option: PlaylistUiOption, checked: boolean) => {
     const next = checked ? [...ui, option] : ui.filter((o) => o !== option)
     setUi(next)
-    updatePlaylistSettingsAction(branch.id, { ui: next })
+    updateBranchSettingsAction(branch.id, { ui: next })
   }
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,14 +84,23 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
     const previewUrl = URL.createObjectURL(file)
     setLocalPreview(previewUrl)
     e.target.value = ''
+
     const formData = new FormData()
     formData.set('image', file)
     try {
-      const result = await updateBranchImageAction(branch.id, formData)
+      const res = await fetch('/api/admin/image', { method: 'POST', body: formData })
+      if (!res.ok) {
+        URL.revokeObjectURL(previewUrl)
+        setLocalPreview(null)
+        showSnackbar('Failed to upload image', 'error')
+        return
+      }
+      const { imagePath } = (await res.json()) as { imagePath: string }
+      const result = await updateBranchImageAction(branch.id, imagePath)
       if (!result.success) {
         URL.revokeObjectURL(previewUrl)
         setLocalPreview(null)
-        showSnackbar(result.error ?? 'Failed to upload image', 'error')
+        showSnackbar(result.error ?? 'Failed to update image', 'error')
       }
     } catch {
       URL.revokeObjectURL(previewUrl)
@@ -112,8 +121,18 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
                 const trimmed = playlistName.trim()
                 if (trimmed && trimmed !== branch.name) {
                   setNameSaving(true)
-                  await updatePlaylistSettingsAction(branch.id, { name: trimmed })
-                  setNameSaving(false)
+                  try {
+                    const result = await updateBranchSettingsAction(branch.id, { name: trimmed })
+                    if (!result.success) {
+                      setPlaylistName(branch.name)
+                      showSnackbar(result.error ?? 'Failed to rename playlist', 'error')
+                    }
+                  } catch {
+                    setPlaylistName(branch.name)
+                    showSnackbar('Failed to rename playlist', 'error')
+                  } finally {
+                    setNameSaving(false)
+                  }
                 } else {
                   setPlaylistName(branch.name)
                 }
@@ -128,7 +147,7 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
             />
             <Typography variant="body2" color="text.secondary" textAlign="center">
               {random && random < 100 ? '~' : null}
-              {formatDuration(mainDuration + randomDuration * (random / 100))}
+              {formatDuration(mainDuration + randomDuration * (random / 100), 'long')}
             </Typography>
           </Stack>
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />
@@ -202,7 +221,9 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               spacing={1}
               sx={{ mb: 2, flexShrink: 0 }}
             >
-              <Typography variant="subtitle2">Tracks{mainDuration > 0 && ` (${formatTime(mainDuration)})`}</Typography>
+              <Typography variant="subtitle2">
+                Tracks{mainDuration > 0 && ` (${formatDuration(mainDuration, 'long')})`}
+              </Typography>
               <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
             </Stack>
             <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -218,7 +239,7 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               sx={{ mb: 2, flexShrink: 0 }}
             >
               <Typography variant="subtitle2">
-                Random Tracks{randomDuration > 0 && ` (${formatTime(randomDuration)})`}
+                Random Tracks{randomDuration > 0 && ` (${formatDuration(randomDuration, 'long')})`}
               </Typography>
               <TrackUploader branchId={branch.id} pool="random" onUploaded={() => setRandomRefreshKey((k) => k + 1)} />
             </Stack>

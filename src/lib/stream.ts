@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { Readable } from 'stream'
+import { createWriteStream } from 'fs'
+import { Readable, Writable } from 'stream'
 
 export const toReadableStream = (readable: Readable): ReadableStream<Uint8Array> =>
   new ReadableStream({
@@ -13,3 +14,8 @@ export const toReadableStream = (readable: Readable): ReadableStream<Uint8Array>
       readable.destroy()
     },
   })
+
+export const streamToFile = async (stream: ReadableStream<Uint8Array>, filePath: string) => {
+  const writable = Writable.toWeb(createWriteStream(filePath, { mode: 0o600 }))
+  await stream.pipeTo(writable)
+}

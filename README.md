@@ -67,7 +67,7 @@ src/
   app/                  App Router pages and layouts
     admin/              Admin dashboard (page, layout, and CRUD components)
     api/                REST API routes
-      admin/            Admin CRUD (branches, tracks, upload-track, venue-users)
+      admin/            Admin CRUD (branches, tracks, track, image, venue-users)
       audio/            Audio streaming with range-request support
       image/            Image proxy (streams from MinIO, auth required)
       playlist/         Playlist tracks with role-based filtering
@@ -86,16 +86,18 @@ src/
 ## Architecture
 
 - **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
-- **Branches** form a recursive tree: folders contain child branches, playlists contain tracks.
+- **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
 - **Audio uploads** are streamed to disk and probed with `ffprobe-static` for metadata, then compressed to 192kbps AAC/M4A via `ffmpeg-static` when a meaningful size reduction (>20%) is expected. Max upload size is 2048 MB. Temp directory is configurable via `UPLOAD_TMP_DIR` (defaults to `/var/tmp`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
+- **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
 
 ## Docker Compose
 
 ```sh
-docker compose up -d          # Redis + MinIO
-docker compose --profile app up  # Also build and run the app container
+docker compose up -d                # Redis + MinIO
+npm run build                       # Build standalone output on host
+docker compose --profile app up     # Run the app container
 ```
 
 - **Redis** on port 6379 (persistent with AOF)

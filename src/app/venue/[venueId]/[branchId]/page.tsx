@@ -113,7 +113,7 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
       }
 
   return (
-    <Stack spacing={2} sx={!isAdmin ? { flex: 1, justifyContent: 'center' } : undefined}>
+    <Stack spacing={2} sx={{ flex: 1, minHeight: 0 }}>
       <AudioPlayer playlist={playlist} isAdmin={isAdmin} />
     </Stack>
   )

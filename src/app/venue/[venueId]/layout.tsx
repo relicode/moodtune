@@ -17,7 +17,7 @@ const VenueLayout = async ({ children }: { children: React.ReactNode }) => {
   return (
     <Stack sx={{ flexGrow: 1, minHeight: 0 }}>
       <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <Container maxWidth="md" sx={{ py: 3, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <Container maxWidth="md" sx={{ py: 3, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {children}
         </Container>
       </Box>

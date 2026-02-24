@@ -19,14 +19,15 @@ import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
 import Slider from '@mui/material/Slider'
-import Stack, { StackProps } from '@mui/material/Stack'
+import Stack from '@mui/material/Stack'
+import type { StackProps } from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import shuffle from 'lodash-es/shuffle'
 import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
-import { formatDuration, formatTime } from '$/lib/utils'
+import { formatDuration } from '$/lib/utils'
 import { PlaylistUiOption } from '$/types'
 import type { Playlist, PlaylistTrack } from '$/types'
 
@@ -205,7 +206,17 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <Container maxWidth="md" disableGutters>
+    <Container
+      maxWidth="md"
+      disableGutters
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        ...(!showTrackList && { justifyContent: 'center' }),
+      }}
+    >
       <audio ref={audioRef} src={audioSrc || undefined} hidden />
 
       {isAdmin && (
@@ -219,14 +230,14 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
         </IconButton>
       )}
 
-      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
+      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
         <Box sx={{ textAlign: 'center' }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
             <Typography variant="h4">{playlist.name}</Typography>
             {showRefresh && (
               <IconButton
                 onClick={async () => {
-                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  const { confirmed } = await confirm({ description: 'Regenerate list?' })
                   if (confirmed) regenerate()
                 }}
                 sx={{ position: 'absolute', left: '120%' }}
@@ -237,7 +248,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
           </Box>
         </Box>
         <Stack spacing={1} alignItems="center">
-          {formatDuration(totalDuration)}
+          {formatDuration(totalDuration, 'long')}
 
           {showTrackList && currentTrack && isDetailedTrack(currentTrack) && (
             <Typography fontWeight="bold">
@@ -245,7 +256,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
             </Typography>
           )}
           <Typography variant="caption" color="text.secondary">
-            {formatTime(currentTime)} / {formatTime(duration)}
+            {formatDuration(currentTime)} / {formatDuration(duration)}
           </Typography>
         </Stack>
         <Box
@@ -318,7 +329,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                 if (currentIndex < tracks.length - 1) {
                   loadAndPlay(currentIndex + 1)
                 } else {
-                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  const { confirmed } = await confirm({ description: 'Regenerate list?' })
                   if (confirmed) regenerate()
                 }
               }}
@@ -330,7 +341,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
             <GridCell>
               {showShuffleControl && (
                 <IconButton
-                  color={shouldShuffle ? 'success' : 'default'}
+                  color={shouldShuffle ? 'primary' : 'default'}
                   onClick={() => {
                     setShouldShuffle((prev) => !prev)
                     setShowRefresh(true)
@@ -348,8 +359,8 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                     max={100}
                     valueLabelDisplay="auto"
                     valueLabelFormat={(v) => `${v}%`}
-                    onChange={(_e, v) => {
-                      setRandom(v as number)
+                    onChange={(_, value: number) => {
+                      setRandom(value)
                       setShowRefresh(true)
                     }}
                     sx={{ ml: 1, mr: 2 }}
@@ -365,7 +376,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
       </Stack>
 
       {showTrackList && (
-        <List>
+        <List sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
           {tracks.map((track, index) => (
             <ListItemButton key={track.id + index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
               <ListItemText
@@ -373,7 +384,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                 secondary={isDetailedTrack(track) ? track.artist || undefined : undefined}
               />
               <Typography variant="caption" color="text.secondary">
-                {formatTime(track.duration)}
+                {formatDuration(track.duration)}
               </Typography>
             </ListItemButton>
           ))}

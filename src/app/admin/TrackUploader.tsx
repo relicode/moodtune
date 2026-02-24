@@ -90,7 +90,7 @@ const TrackUploader = ({ branchId, onUploaded, pool = 'main' }: TrackUploaderPro
       if (pool === 'random') formData.set('pool', 'random')
 
       try {
-        const res = await fetch('/api/admin/upload-track', { method: 'POST', body: formData })
+        const res = await fetch('/api/admin/track', { method: 'POST', body: formData })
         if (!res.ok) {
           const errorMsg = res.headers.get('content-type')?.includes('application/json')
             ? ((await res.json()) as { error?: string }).error || 'Upload failed'

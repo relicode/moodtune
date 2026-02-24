@@ -2,8 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
-import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
+import {
+  addChildBranch,
+  createBranch,
+  deleteBranchRecursive,
+  getBranch,
+  removeChildBranch,
+  updateBranch,
+} from '$/data/branches'
+import { IMAGE_BUCKET, removeFile } from '$/data/minio'
 import { deleteTrack, removeRandomTrackFromBranch, removeTrackFromBranch, updateTrack } from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
@@ -15,10 +22,11 @@ import {
   removeUserFromVenue,
   updateVenue,
 } from '$/data/venues'
-import { sanitizeExtension } from '$/lib/filename'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, UserRole } from '$/types'
 import type { ActionResult, PlaylistUiOption, SessionPayload } from '$/types'
+
+const IMAGE_PATH_RE = /^image\/[0-9a-f-]+\.\w+$/
 
 type AdminCheck = { error: ActionResult } | { session: SessionPayload }
 
@@ -107,18 +115,10 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
   const parentId = (formData.get('parentId') as string) || undefined
   const name = formData.get('name') as string
   const type = formData.get('type') as BranchType
-  const imageFile = formData.get('image') as File | null
+  const rawImagePath = (formData.get('imagePath') as string) || undefined
+  const imagePath = rawImagePath && IMAGE_PATH_RE.test(rawImagePath) ? rawImagePath : undefined
 
   if (!name || !type) return { success: false, error: 'Name and type are required' }
-
-  let imagePath: string | undefined
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    imagePath = objectName
-  }
 
   const branch = await createBranch(venueId, parentId, name, type, imagePath)
 
@@ -198,7 +198,7 @@ export const setBranchRandomAction = async (branchId: string, random: number): P
   return { success: true }
 }
 
-export const updatePlaylistSettingsAction = async (
+export const updateBranchSettingsAction = async (
   branchId: string,
   settings: Partial<{ name: string; ui: PlaylistUiOption[] }>
 ): Promise<ActionResult> => {
@@ -210,20 +210,20 @@ export const updatePlaylistSettingsAction = async (
   return { success: true }
 }
 
-export const updateBranchImageAction = async (branchId: string, formData: FormData): Promise<ActionResult> => {
+export const updateBranchImageAction = async (branchId: string, imagePath: string): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error
 
-  const imageFile = formData.get('image') as File | null
-  if (!imageFile || imageFile.size === 0) {
-    return { success: false, error: 'No image provided' }
+  if (!IMAGE_PATH_RE.test(imagePath)) {
+    return { success: false, error: 'Invalid image path' }
   }
 
-  const ext = sanitizeExtension(imageFile.name)
-  const objectName = `image/${crypto.randomUUID()}.${ext}`
-  const buffer = Buffer.from(await imageFile.arrayBuffer())
-  await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-  await updateBranch(branchId, { imagePath: objectName })
+  const branch = await getBranch(branchId)
+  if (branch?.imagePath) {
+    await removeFile(IMAGE_BUCKET, branch.imagePath).catch(() => {})
+  }
+
+  await updateBranch(branchId, { imagePath })
   revalidatePath('/admin')
   return { success: true }
 }

@@ -39,19 +39,35 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venueId)
       if (parentId) formData.set('parentId', parentId)
-      try {
-        const result = await createBranchAction(prev, formData)
-        if (result.success) {
-          formRef.current?.reset()
-          onClose()
-          onCreated()
+
+      const imageFile = formData.get('image') as File | null
+      if (imageFile && imageFile.size > 0) {
+        const imageData = new FormData()
+        imageData.set('image', imageFile)
+        try {
+          const res = await fetch('/api/admin/image', { method: 'POST', body: imageData })
+          if (!res.ok) {
+            showSnackbar('Failed to upload image', 'error')
+            setImageKey((k) => k + 1)
+            return { success: false, error: 'Image upload failed' }
+          }
+          const { imagePath } = (await res.json()) as { imagePath: string }
+          formData.set('imagePath', imagePath)
+        } catch {
+          showSnackbar('Failed to upload image', 'error')
+          setImageKey((k) => k + 1)
+          return { success: false, error: 'Image upload failed' }
         }
-        return result
-      } catch {
-        showSnackbar('Failed to upload image', 'error')
-        setImageKey((k) => k + 1)
-        return { success: false, error: 'Upload failed' }
       }
+      formData.delete('image')
+
+      const result = await createBranchAction(prev, formData)
+      if (result.success) {
+        formRef.current?.reset()
+        onClose()
+        onCreated()
+      }
+      return result
     },
     { success: false }
   )

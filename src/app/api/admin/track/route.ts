@@ -1,7 +1,5 @@
-import { createWriteStream } from 'fs'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
-import { Writable } from 'stream'
 import { NextResponse } from 'next/server'
 
 import { AUDIO_BUCKET, removeFile, uploadFileFromPath } from '$/data/minio'
@@ -12,14 +10,10 @@ import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
 import { TEMP_DIR } from '$/lib/paths'
 import { getSessionFromCookie } from '$/lib/session'
+import { streamToFile } from '$/lib/stream'
 import { UserRole } from '$/types'
 
 const MAX_FILE_SIZE = 2_147_483_648 // 2048 MB
-
-const streamToFile = async (stream: ReadableStream<Uint8Array>, filePath: string) => {
-  const writable = Writable.toWeb(createWriteStream(filePath, { mode: 0o600 }))
-  await stream.pipeTo(writable)
-}
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()

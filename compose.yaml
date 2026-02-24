@@ -1,21 +1,24 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY:-https://verdaccio.moisad.info}
-
+    image: node:24-alpine
     restart: unless-stopped
     profiles: [app]
     env_file: .env
     environment:
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=minio
+      - UPLOAD_TMP_DIR=/tmp/uploads
     ports:
       - '127.0.0.1:3000:3000'
     expose:
       - 3000
+    working_dir: /app
+    volumes:
+      - ./.next/standalone:/app
+      - ./.next/static:/app/.next/static
+      - ./public:/app/public
+      - ./data/uploads:/tmp/uploads
+    command: node server.js
 
   redis:
     image: redis:8-alpine

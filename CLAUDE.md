@@ -32,7 +32,7 @@ Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (
 
 - **`src/app/`** — Next.js App Router pages and layouts
   - **`src/app/api/`** — REST API routes (admin CRUD, audio streaming, playlist)
-  - **`src/app/admin/`** — Admin dashboard page, layout, and components (dialog-based CRUD for venues, branches, tracks, users)
+  - **`src/app/admin/`** — Admin dashboard page, layout, and components (dialog-based CRUD for venues, branches, tracks, users). `DialogEditBranch` edits folder name/image; `DialogEditPlaylist` edits playlist settings and tracks.
 - **`src/actions/`** — Server Actions (`admin.ts`, `auth.ts`, `branches.ts`) and utilities (`media.ts` — synchronous image proxy URL builder)
 - **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
@@ -48,7 +48,8 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 
 - `GET/POST /api/admin/branches/[venueId]` — branch CRUD scoped by venue
 - `GET/POST /api/admin/tracks/[branchId]` — track CRUD scoped by branch; `?pool=random` returns random tracks
-- `POST /api/admin/upload-track` — audio file upload with metadata extraction and optional compression; `pool=random` field stores in random pool
+- `POST /api/admin/track` — audio file upload with metadata extraction and optional compression; `pool=random` field stores in random pool
+- `POST /api/admin/image` — image file upload; streams to disk, uploads to MinIO, returns `{ imagePath }`
 - `GET/POST/DELETE /api/admin/venue-users/[venueId]` — manage venue user assignments
 - `GET /api/audio/[branchId]/[trackId]` — stream audio from MinIO (supports range requests)
 - `GET /api/image/[...path]` — proxy images from MinIO through the server (auth required, path-traversal protected)
@@ -73,7 +74,8 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - **ESLint** uses flat config with `eslint-config-next` (core-web-vitals + typescript)
 - **Audio processing** — `ffprobe-static` and `ffmpeg-static` provide static binaries (both listed in `serverExternalPackages`). `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both accept a file path — the caller manages the temp file lifecycle. Uploads stream to disk (`UPLOAD_TMP_DIR` env var, defaults to `/var/tmp`). Max upload size: 2048 MB.
 - **Data layer** — `src/data/dal.ts` provides typed Redis helpers (UUID generation, hset/hgetall with serialization). Entity modules (`branches.ts`, `tracks.ts`, `venues.ts`, `users.ts`) build on the DAL. Branches form a recursive tree: folders contain child branches, playlists contain tracks. Playlists also have a separate random-track pool (`branch:<id>:randomTracks`) and a `random` probability (0-100) controlling how many random tracks get injected at playback.
-- **Docker Compose** provides Redis, MinIO, and an optional app container (`docker compose --profile app up`)
+- **Venue layout** — The venue layout (`src/app/venue/[venueId]/layout.tsx`) uses a flex column with an `overflow: auto` scroll container. Playlist pages opt out of page-level scrolling by threading `minHeight: 0` through the flex chain (layout Container → page Stack → AudioPlayer Container), allowing the AudioPlayer to fill available height. The AudioPlayer uses conditional `justifyContent: 'center'` when the track list is hidden; when visible, the track list gets `flex: 1` + `overflow: auto` to scroll independently.
+- **Docker Compose** provides Redis, MinIO, and an optional app container (`docker compose --profile app up`). The app container runs the pre-built standalone output (`npm run build` on the host first); it does not build inside Docker.
 
 ## Testing
 
