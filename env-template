@@ -2,7 +2,8 @@
 # All env vars (including NEXT_PUBLIC_*) are read from .env — do not use .env.local
 
 # --- Redis ---
-REDIS_URL=redis://localhost:6379 # Redis connection URL (overridden to redis://redis:6379 in Docker Compose)
+REDIS_URL=redis://localhost:6379 # Redis connection URL (production overlay overrides this to include auth)
+REDIS_PASSWORD= # Redis password (required for production; prod.sh validates this is set)
 
 # --- MinIO ---
 MINIO_ENDPOINT=localhost # MinIO hostname (overridden to 'minio' in Docker Compose)
