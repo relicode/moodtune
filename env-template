@@ -1,4 +1,5 @@
 # Copy to .env
+# All env vars (including NEXT_PUBLIC_*) are read from .env — do not use .env.local
 
 # --- Redis ---
 REDIS_URL=redis://localhost:6379 # Redis connection URL (overridden to redis://redis:6379 in Docker Compose)
@@ -18,6 +19,14 @@ ADMIN_PASSWORD=admin # Default admin password created by db:seed
 
 # --- Uploads ---
 # UPLOAD_TMP_DIR=/var/tmp # Directory for temporary upload files (defaults to /var/tmp)
+
+# --- Analytics (optional) ---
+# NEXT_PUBLIC_UMAMI_URL=https://your-umami-host/script.js # Umami analytics script URL
+# NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id # Umami website ID
+
+# --- Logging ---
+# LOG_LEVEL=debug # Pino log level (trace/debug/info/warn/error/fatal; defaults to debug in dev, info in prod)
+# LOG_DIR=/var/log/moodtune # Log file directory (defaults to ./data/log; overridden in Docker Compose)
 
 # --- Build ---
 # NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/ # Private npm registry (optional, used during Docker build)

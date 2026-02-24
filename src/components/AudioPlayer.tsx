@@ -27,6 +27,8 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { createTrackReporter } from '$/lib/analytics'
+import type { TrackInfo } from '$/lib/analytics'
 import { formatDuration } from '$/lib/utils'
 import { PlaylistUiOption } from '$/types'
 import type { Playlist, PlaylistTrack } from '$/types'
@@ -34,11 +36,18 @@ import type { Playlist, PlaylistTrack } from '$/types'
 type AudioPlayerProps<A extends boolean> = {
   playlist: Playlist<A>
   isAdmin: A
+  username?: string
 }
 
 type AnyTrack = PlaylistTrack<boolean>
 
 const isDetailedTrack = (track: AnyTrack): track is PlaylistTrack<true> => 'name' in track
+
+const toTrackInfo = (track: AnyTrack): TrackInfo => ({
+  id: track.id,
+  duration: track.duration,
+  ...(isDetailedTrack(track) ? { name: track.name, artist: track.artist } : {}),
+})
 
 const generateTracklist = (
   playlist: Playlist<boolean>,
@@ -75,7 +84,7 @@ const GridCell = (props: StackProps) => (
   </Grid>
 )
 
-const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
+const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>) => {
   const [adminView, setAdminView] = useState(isAdmin)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
@@ -91,8 +100,10 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const totalDuration = tracks.reduce((acc, cur) => acc + cur.duration, 0)
 
   const audioRef = useRef<HTMLAudioElement>(null)
+  const lastReportedTrackRef = useRef<string | null>(null)
   const confirm = useConfirm()
   const { showSnackbar } = useSnackbar()
+  const reportTrack = createTrackReporter(playlist.id, playlist.name, username)
 
   const showTrackList = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
   const showShuffleControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
@@ -161,6 +172,9 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
     if (!audio) return
 
     const onEnded = () => {
+      if (currentTrack) {
+        reportTrack('track-complete', toTrackInfo(currentTrack), { listenedDuration: audio.duration || 0 })
+      }
       if (currentIndex < tracks.length - 1) {
         setCurrentIndex(currentIndex + 1)
       } else {
@@ -182,11 +196,23 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
     audio.muted = muted
   }, [volume, muted])
 
+  // Send track-play analytics when a new track starts playing
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) return
+    if (currentTrack.id === lastReportedTrackRef.current) return
+    lastReportedTrackRef.current = currentTrack.id
+    reportTrack('track-play', toTrackInfo(currentTrack))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reportTrack is stable via React Compiler
+  }, [currentIndex, isPlaying, tracks])
+
   const VolumeIcon = muted || volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon
 
   const loadAndPlay = (index: number) => {
     const audio = audioRef.current
     if (!tracks[index] || !audio) return
+    if (isPlaying && currentTrack && tracks[index].id !== currentTrack.id) {
+      reportTrack('track-skip', toTrackInfo(currentTrack), { listenedDuration: audio.currentTime })
+    }
     setCurrentIndex(index)
     setIsPlaying(true)
     if (index === currentIndex) {

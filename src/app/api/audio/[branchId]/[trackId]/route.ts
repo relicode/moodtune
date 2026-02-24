@@ -2,9 +2,12 @@ import { getBranch } from '$/data/branches'
 import { listAll } from '$/data/dal'
 import minioClient, { AUDIO_BUCKET } from '$/data/minio'
 import { getTrack } from '$/data/tracks'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
 import { toReadableStream } from '$/lib/stream'
 import { UserRole } from '$/types'
+
+const log = createLogger('audio-stream')
 
 export const GET = async (request: Request, { params }: { params: Promise<{ branchId: string; trackId: string }> }) => {
   const session = await getSessionFromCookie()
@@ -20,6 +23,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
   }
 
   if (session.role === UserRole.USER && !session.venueIds.includes(branch.venueId)) {
+    log.warn({ branchId, userId: session.userId, username: session.username }, 'forbidden audio stream access')
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -58,6 +62,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
 
   const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
   if (!match) {
+    log.warn({ branchId, trackId, rangeHeader }, 'invalid range header')
     return new Response('Invalid range', {
       status: 416,
       headers: { 'Content-Range': `bytes */${fileSize}` },

@@ -5,10 +5,13 @@ import sharp from 'sharp'
 
 import { IMAGE_BUCKET, uploadFileFromPath } from '$/data/minio'
 import { sanitizeExtension } from '$/lib/filename'
+import { createLogger } from '$/lib/logger'
 import { TEMP_DIR } from '$/lib/paths'
 import { getSessionFromCookie } from '$/lib/session'
 import { streamToFile } from '$/lib/stream'
 import { UserRole } from '$/types'
+
+const log = createLogger('image-upload')
 
 const MAX_FILE_SIZE = 20_971_520 // 20 MB
 
@@ -39,6 +42,7 @@ const ALLOWED_TYPES = new Set(
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== UserRole.ADMIN) {
+    log.warn('unauthorized image upload attempt')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -46,14 +50,17 @@ export const POST = async (request: Request) => {
   const imageFile = formData.get('image') as File | null
 
   if (!imageFile || imageFile.size === 0) {
+    log.warn('image upload rejected — no file')
     return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
   }
 
   if (!ALLOWED_TYPES.has(imageFile.type)) {
+    log.warn({ type: imageFile.type }, 'image upload rejected — unsupported type')
     return NextResponse.json({ error: 'Unsupported image type' }, { status: 415 })
   }
 
   if (imageFile.size > MAX_FILE_SIZE) {
+    log.warn({ size: imageFile.size }, 'image upload rejected — file too large')
     return NextResponse.json({ error: 'File size exceeds 20 MB limit' }, { status: 413 })
   }
 
@@ -64,8 +71,10 @@ export const POST = async (request: Request) => {
   try {
     await streamToFile(imageFile.stream(), tmpFile)
     await uploadFileFromPath(IMAGE_BUCKET, objectName, tmpFile, imageFile.type)
+    log.info({ objectName, size: imageFile.size, type: imageFile.type }, 'image uploaded')
     return NextResponse.json({ imagePath: objectName })
-  } catch {
+  } catch (err) {
+    log.error({ err, objectName }, 'image upload failed — MinIO error')
     return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
   } finally {
     await unlink(tmpFile).catch(() => {})

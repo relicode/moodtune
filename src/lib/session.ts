@@ -3,7 +3,10 @@ import 'server-only'
 import { jwtVerify, SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 
+import { createLogger } from '$/lib/logger'
 import type { SessionPayload } from '$/types'
+
+const log = createLogger('session')
 
 const COOKIE_NAME = 'moodtune-session'
 const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'change-me')
@@ -20,6 +23,7 @@ export const verifySession = async (token: string): Promise<SessionPayload | nul
     const { payload } = await jwtVerify(token, getSecret())
     return payload as unknown as SessionPayload
   } catch {
+    log.warn('JWT verification failed')
     return null
   }
 }

@@ -1,16 +1,21 @@
 import minioClient, { IMAGE_BUCKET } from '$/data/minio'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
 import { toReadableStream } from '$/lib/stream'
+
+const log = createLogger('image-proxy')
 
 export const GET = async (_request: Request, { params }: { params: Promise<{ path: string[] }> }) => {
   const session = await getSessionFromCookie()
   if (!session) {
+    log.warn('unauthorized image proxy request')
     return new Response('Unauthorized', { status: 401 })
   }
 
   const { path } = await params
 
   if (path.some((segment) => segment === '..' || segment === '.')) {
+    log.warn({ path: path.join('/') }, 'path traversal attempt blocked')
     return new Response('Bad request', { status: 400 })
   }
 

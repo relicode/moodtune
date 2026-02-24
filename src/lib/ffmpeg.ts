@@ -4,7 +4,10 @@ import { execFile as execFileCb } from 'child_process'
 import { join } from 'path'
 import { promisify } from 'util'
 
+import { createLogger } from '$/lib/logger'
 import { TEMP_DIR } from '$/lib/paths'
+
+const log = createLogger('ffmpeg')
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ffmpegPath: string = require('ffmpeg-static')
@@ -30,5 +33,6 @@ export const compressToM4a = async (inputPath: string): Promise<string> => {
     '-y',
     outputPath,
   ])
+  log.info({ inputPath, outputPath, targetBitrate: `${TARGET_BITRATE_KBPS}kbps` }, 'compression complete')
   return outputPath
 }

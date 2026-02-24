@@ -2,8 +2,12 @@ import GlobalStyles from '@mui/material/GlobalStyles'
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 
 import ThemeRegistry from '$/app/ThemeRegistry'
+
+const umamiUrl = process.env.NEXT_PUBLIC_UMAMI_URL
+const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
 
 const inter = Inter({
   variable: '--font-inter',
@@ -29,6 +33,9 @@ const RootLayout = ({
         />
         {children}
       </ThemeRegistry>
+      {umamiUrl && umamiWebsiteId && (
+        <Script src={umamiUrl} data-website-id={umamiWebsiteId} strategy="afterInteractive" />
+      )}
     </body>
   </html>
 )

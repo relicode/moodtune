@@ -22,9 +22,12 @@ import {
   removeUserFromVenue,
   updateVenue,
 } from '$/data/venues'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, UserRole } from '$/types'
 import type { ActionResult, PlaylistUiOption, SessionPayload } from '$/types'
+
+const log = createLogger('admin')
 
 const IMAGE_PATH_RE = /^image\/[0-9a-f-]+\.\w+$/
 
@@ -33,6 +36,7 @@ type AdminCheck = { error: ActionResult } | { session: SessionPayload }
 const requireAdmin = async (): Promise<AdminCheck> => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== UserRole.ADMIN) {
+    log.warn('requireAdmin rejected — unauthorized')
     return { error: { success: false, error: 'Unauthorized' } }
   }
   return { session }
@@ -47,6 +51,7 @@ export const createVenueAction = async (_prev: ActionResult, formData: FormData)
   if (!name) return { success: false, error: 'Name is required' }
 
   await createVenue(name, '')
+  log.info({ name }, 'venue created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -71,6 +76,7 @@ export const deleteVenueAction = async (venueId: string): Promise<ActionResult> 
   if ('error' in auth) return auth.error
 
   await deleteVenue(venueId)
+  log.info({ venueId }, 'venue deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -93,6 +99,7 @@ export const createVenueUserAction = async (_prev: ActionResult, formData: FormD
   }
 
   await addUserToVenue(venueId, user.id)
+  log.info({ venueId, username }, 'venue user created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -103,6 +110,7 @@ export const deleteVenueUserAction = async (venueId: string, userId: string): Pr
 
   await removeUserFromVenue(venueId, userId)
   await deleteUser(userId)
+  log.info({ venueId, userId }, 'venue user deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -128,6 +136,7 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
     await addRootBranch(venueId, branch.id)
   }
 
+  log.info({ venueId, branchId: branch.id, name, type }, 'branch created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -147,6 +156,7 @@ export const deleteBranchAction = async (
   }
 
   await deleteBranchRecursive(branchId)
+  log.info({ venueId, branchId }, 'branch deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -181,6 +191,7 @@ export const removeTrackAction = async (
     await removeTrackFromBranch(branchId, trackId)
   }
   await deleteTrack(trackId)
+  log.info({ branchId, trackId, pool }, 'track removed')
   revalidatePath('/admin')
   return { success: true }
 }

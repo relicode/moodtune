@@ -37,7 +37,7 @@ Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (
 - **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
 - **`src/hooks/`** — Custom React hooks (`useSnackbar` — shared snackbar context via `SnackbarProvider` in ThemeRegistry)
-- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `paths.ts`, `stream.ts`, `utils.ts`)
+- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `paths.ts`, `stream.ts`, `utils.ts`, `logger.ts`, `analytics.ts`, `request.ts`)
 - **`src/proxy.ts`** — Middleware: JWT verification, route guards (`/admin` requires admin role, `/venue/[venueId]` requires venue access), sliding token refresh
 - **`src/types/`** — TypeScript type definitions
 - **`src/theme.ts`** — MUI theme config (CSS variables, light/dark color schemes, Inter font)
@@ -54,6 +54,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - `GET /api/audio/[branchId]/[trackId]` — stream audio from MinIO (supports range requests)
 - `GET /api/image/[...path]` — proxy images from MinIO through the server (auth required, path-traversal protected)
 - `GET /api/playlist/[playlistId]` — playlist tracks with role-based filtering
+- `POST /api/analytics` — client-side track analytics relay (auth required, validates event names against allowlist, logs to pino)
 
 ## Auth and Sessions
 
@@ -61,6 +62,23 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - 12-hour session lifetime with sliding refresh (refreshes when >50% elapsed)
 - Single unified login page at `/` — the `login` server action handles both admin and venue-user roles, redirecting admins to `/admin` and venue users to `/venue/[venueId]`
 - `src/proxy.ts` enforces route guards; individual API routes also verify sessions via `getSessionFromCookie()`
+
+## Logging
+
+- **Pino** structured logging via `src/lib/logger.ts`. Import with `import { createLogger } from '$/lib/logger'` and create module-scoped loggers: `const log = createLogger('module-name')`.
+- Logs are written to `$LOG_DIR/app.log` (JSON format, defaults to `./data/log/app.log`) and to stdout via `pino-pretty` in dev mode. In Docker, `LOG_DIR` is set to `/var/log/moodtune` and `./data/log` is bind-mounted there.
+- Log level defaults to `debug` in dev and `info` in production; override with the `LOG_LEVEL` env var.
+- The logger singleton is cached on `globalThis` to avoid duplicate pino transport workers during Next.js hot-reload.
+- Logging covers: auth (login/logout with IP), proxy route guards, admin actions, file uploads, audio streaming, DAL writes, ffmpeg/ffprobe, and client analytics relay.
+- Failed login attempts log the attempted password (intentional for security auditing).
+
+## Analytics
+
+- **Umami** (optional) for client-side page-view and event analytics. Configured via `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` env vars. The script tag is conditionally rendered in `src/app/layout.tsx`.
+- **Client analytics** (`src/lib/analytics.ts`) sends `track-play`, `track-complete`, and `track-skip` events from the AudioPlayer to both the server-side `/api/analytics` endpoint and Umami.
+- **Server analytics endpoint** (`POST /api/analytics`) requires authentication, validates event names against an allowlist, truncates untrusted string fields, and logs structured data via pino.
+- **Type declarations** for the Umami global are in `src/types/umami.d.ts`.
+- **IP extraction** utility at `src/lib/request.ts` reads `x-forwarded-for` (first hop) or `x-real-ip` for logging behind reverse proxies. The reverse proxy must be configured to set/override these headers to prevent client spoofing.
 
 ## Key Technical Details
 

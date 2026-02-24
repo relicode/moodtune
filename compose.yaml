@@ -8,6 +8,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=minio
       - UPLOAD_TMP_DIR=/tmp/uploads
+      - LOG_DIR=/var/log/moodtune
     ports:
       - '127.0.0.1:3000:3000'
     expose:
@@ -18,6 +19,7 @@ services:
       - ./.next/static:/app/.next/static
       - ./public:/app/public
       - ./data/uploads:/tmp/uploads
+      - ./data/log:/var/log/moodtune
     command: node server.js
 
   redis:

@@ -4,7 +4,10 @@ import { execFile as execFileCb } from 'child_process'
 import { promisify } from 'util'
 import ffprobe from 'ffprobe-static'
 
+import { createLogger } from '$/lib/logger'
+
 const execFile = promisify(execFileCb)
+const log = createLogger('ffprobe')
 
 export type AudioMetadata = {
   duration: number
@@ -20,12 +23,14 @@ export const extractMetadata = async (filePath: string): Promise<AudioMetadata> 
 
   if (!duration || isNaN(duration)) throw new Error('Could not extract duration from audio file')
 
-  return {
+  const metadata = {
     duration,
     title: tags.title ?? tags.TITLE ?? null,
     artist: tags.artist ?? tags.ARTIST ?? tags.album_artist ?? tags.ALBUM_ARTIST ?? null,
     genre: tags.genre ?? tags.GENRE ?? null,
   }
+  log.debug({ metadata }, 'extracted metadata')
+  return metadata
 }
 
 type FormatTags = Record<string, string | undefined>

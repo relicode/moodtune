@@ -8,16 +8,20 @@ import { compressToM4a, TARGET_BYTES_PER_SEC } from '$/lib/ffmpeg'
 import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
+import { createLogger } from '$/lib/logger'
 import { TEMP_DIR } from '$/lib/paths'
 import { getSessionFromCookie } from '$/lib/session'
 import { streamToFile } from '$/lib/stream'
 import { UserRole } from '$/types'
+
+const log = createLogger('track-upload')
 
 const MAX_FILE_SIZE = 2_147_483_648 // 2048 MB
 
 export const POST = async (request: Request) => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== UserRole.ADMIN) {
+    log.warn('unauthorized track upload attempt')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -30,10 +34,12 @@ export const POST = async (request: Request) => {
   const pool: 'main' | 'random' = rawPool === 'random' ? 'random' : 'main'
 
   if (!branchId || !audioFile || audioFile.size === 0) {
+    log.warn({ branchId }, 'track upload rejected — missing fields')
     return NextResponse.json({ error: 'branchId and audio file are required' }, { status: 400 })
   }
 
   if (audioFile.size > MAX_FILE_SIZE) {
+    log.warn({ branchId, size: audioFile.size }, 'track upload rejected — file too large')
     return NextResponse.json({ error: 'File size exceeds 2048 MB limit' }, { status: 413 })
   }
 
@@ -50,6 +56,7 @@ export const POST = async (request: Request) => {
     try {
       meta = await extractMetadata(tmpFile)
     } catch {
+      log.warn({ branchId, fileName: audioFile.name }, 'track upload rejected — unreadable metadata')
       return NextResponse.json(
         { error: 'Could not read audio metadata — unsupported or corrupt file' },
         { status: 422 }
@@ -93,6 +100,7 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ error: 'Failed to save track record' }, { status: 500 })
     }
 
+    log.info({ branchId, pool, title, artist, duration: meta.duration, compressed: shouldCompress }, 'track uploaded')
     return NextResponse.json({ success: true })
   } finally {
     await unlink(tmpFile).catch(() => {})
