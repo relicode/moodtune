@@ -26,7 +26,7 @@ Moodtune is a Next.js 16 application using React 19 and MUI 7. It uses the App R
 
 Copy `env-template` to `.env`. Node version: 24.11.1 (see `.nvmrc`).
 
-Required env vars include `JWT_SECRET`, Redis connection, and MinIO connection (`MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, etc.).
+Required env vars include `JWT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, Redis connection, and MinIO connection (`MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, etc.). The seed script requires `ADMIN_USERNAME` and `ADMIN_PASSWORD` (no hardcoded fallbacks).
 
 ## Architecture
 
@@ -78,7 +78,7 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - **Client analytics** (`src/lib/analytics.ts`) sends `track-play`, `track-complete`, and `track-skip` events from the AudioPlayer to both the server-side `/api/analytics` endpoint and Umami.
 - **Server analytics endpoint** (`POST /api/analytics`) requires authentication, validates event names against an allowlist, truncates untrusted string fields, and logs structured data via pino.
 - **Type declarations** for the Umami global are in `src/types/umami.d.ts`.
-- **IP extraction** utility at `src/lib/request.ts` reads `x-forwarded-for` (first hop) or `x-real-ip` for logging behind reverse proxies. The reverse proxy must be configured to set/override these headers to prevent client spoofing.
+- **IP extraction** utility at `src/lib/request.ts` reads `x-forwarded-for` (first hop) or `x-real-ip` for logging behind reverse proxies. Caddy is configured to override both `X-Forwarded-For` and `X-Real-IP` with `{remote_host}` to prevent client spoofing (see `~/services/Caddyfile`).
 
 ## Key Technical Details
 
@@ -90,10 +90,14 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - **MUI 7** with Emotion — the ThemeRegistry is at `$/app/ThemeRegistry`; import MUI components individually (e.g., `import Button from '@mui/material/Button'`)
 - **Prettier** config: no semicolons, single quotes, trailing commas (es5), 120 char width, import sorting via `@ianvs/prettier-plugin-sort-imports`
 - **ESLint** uses flat config with `eslint-config-next` (core-web-vitals + typescript)
-- **Audio processing** — `ffprobe-static` and `ffmpeg-static` provide static binaries (both listed in `serverExternalPackages`). `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both accept a file path — the caller manages the temp file lifecycle. Uploads stream to disk (`UPLOAD_TMP_DIR` env var, defaults to `/var/tmp`). Max upload size: 2048 MB.
+- **Audio processing** — `src/lib/ffprobe.ts` extracts metadata; `src/lib/ffmpeg.ts` compresses uploads to 192kbps AAC/M4A when a >20% size reduction is expected. Both try `ffprobe-static`/`ffmpeg-static` npm binaries first and fall back to system `ffprobe`/`ffmpeg` (the Docker image installs system ffmpeg via `apk`). Both accept a file path — the caller manages the temp file lifecycle. Uploads stream to disk (`UPLOAD_TMP_DIR` env var, defaults to `/var/tmp`). Max upload size: 2048 MB.
 - **Data layer** — `src/data/dal.ts` provides typed Redis helpers (UUID generation, hset/hgetall with serialization). Entity modules (`branches.ts`, `tracks.ts`, `venues.ts`, `users.ts`) build on the DAL. Branches form a recursive tree: folders contain child branches, playlists contain tracks. Playlists also have a separate random-track pool (`branch:<id>:randomTracks`) and a `random` probability (0-100) controlling how many random tracks get injected at playback.
 - **Venue layout** — The venue layout (`src/app/venue/[venueId]/layout.tsx`) uses a flex column with an `overflow: auto` scroll container. Playlist pages opt out of page-level scrolling by threading `minHeight: 0` through the flex chain (layout Container → page Stack → AudioPlayer Container), allowing the AudioPlayer to fill available height. The AudioPlayer uses conditional `justifyContent: 'center'` when the track list is hidden; when visible, the track list gets `flex: 1` + `overflow: auto` to scroll independently.
-- **Docker Compose** provides Redis, MinIO, and an optional app container (`docker compose --profile app up`). The app container runs the pre-built standalone output (`npm run build` on the host first); it does not build inside Docker.
+- **Docker** — A multi-stage `Dockerfile` builds the app: `deps` (npm ci), `builder` (next build), `runner` (Alpine with system ffmpeg, standalone output only). The app service is named `moodtune-app`. `compose.yaml` defines all services (app, Redis, MinIO) with production settings (healthchecks, resource limits, caddy network). For dev, run `docker compose up redis minio` and use `npm run dev` on the host. For production, run `./prod.sh up -d` which validates `JWT_SECRET` and starts the full stack (moodtune + Caddy + Umami) via the root `~/services/compose.yaml`.
+- **Production deployment** — The root `~/services/compose.yaml` includes moodtune via the `include` directive. The app is bound to `127.0.0.1:3333`, all services to localhost, with resource limits (2 CPUs, 1.5 GB RAM). A shared `caddy` named network connects the moodtune app to the Caddy reverse proxy defined in the root compose.
+- **Reverse proxy** — Caddy (configured in `~/services/Caddyfile`) serves `moodtune.siren.codes` with automatic TLS via Let's Encrypt, proxying to `moodtune-app:3000` on the shared `caddy` network. The Caddyfile includes security headers (HSTS, X-Content-Type-Options, Referrer-Policy), exploit path blocking, bot user-agent blocking, JSON access logging to `/var/log/caddy/moodtune-access.log`, and sets `X-Forwarded-For`/`X-Real-IP` headers for accurate client IP logging.
+- **Production seeding** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
+- **Scripts** — All scripts in `scripts/` use `@next/env` `loadEnvConfig` to load `.env` automatically. The seed script requires `ADMIN_USERNAME` and `ADMIN_PASSWORD` to be set (exits with an error if missing).
 
 ## Testing
 

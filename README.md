@@ -12,7 +12,7 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
 1. Start the backing services:
 
    ```sh
-   docker compose up -d
+   docker compose up redis minio
    ```
 
 2. Install dependencies:
@@ -27,7 +27,7 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
    cp env-template .env
    ```
 
-4. Seed the database (creates admin user and MinIO buckets):
+4. Seed the database (creates admin user and MinIO buckets). `ADMIN_USERNAME` and `ADMIN_PASSWORD` must be set in `.env`:
 
    ```sh
    npm run db:seed
@@ -88,23 +88,32 @@ src/
 
 - **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
 - **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
-- **Audio uploads** are streamed to disk and probed with `ffprobe-static` for metadata, then compressed to 192kbps AAC/M4A via `ffmpeg-static` when a meaningful size reduction (>20%) is expected. Max upload size is 2048 MB. Temp directory is configurable via `UPLOAD_TMP_DIR` (defaults to `/var/tmp`).
+- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. The code tries `ffprobe-static`/`ffmpeg-static` npm binaries first and falls back to system binaries (the Docker image installs ffmpeg via `apk`). Max upload size is 2048 MB. Temp directory is configurable via `UPLOAD_TMP_DIR` (defaults to `/var/tmp`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
 - **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
 - **Logging** uses pino for structured JSON logging to `./data/log/app.log` (plus `pino-pretty` to stdout in dev). Set `LOG_LEVEL` env var to control verbosity (defaults to `debug` in dev, `info` in production). Covers auth, route guards, admin actions, uploads, streaming, and analytics.
 - **Analytics** (optional): set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in `.env` to enable Umami page-view tracking. The AudioPlayer also sends `track-play`, `track-complete`, and `track-skip` events to both Umami and the server-side `/api/analytics` endpoint for structured logging.
 
-## Docker Compose
+## Docker
+
+A multi-stage `Dockerfile` builds the app (deps, builder, runner with system ffmpeg on Alpine). `compose.yaml` defines all services with production settings (healthchecks, resource limits, Caddy network).
 
 ```sh
-docker compose up -d                # Redis + MinIO
-npm run build                       # Build standalone output on host
-docker compose --profile app up     # Run the app container
+docker compose up redis minio       # Dev: just the backing services
+./prod.sh up -d                     # Production: full stack (validates JWT_SECRET)
+./prod.sh up -d --build moodtune-app  # Rebuild and redeploy the app
 ```
 
 - **Redis** on port 6379 (persistent with AOF)
-- **MinIO** on port 9000 (API) / 9001 (console)
+- **MinIO** on port 9000 (API only, no console in production)
+- The app service is named `moodtune-app`, bound to `127.0.0.1:3333`
+
+## Production Deployment
+
+`prod.sh` validates `JWT_SECRET` from `.env`, then runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Caddy reverse proxies to `moodtune-app:3000` on a shared `caddy` network.
+
+**Seed in production** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
 
 ## License
 

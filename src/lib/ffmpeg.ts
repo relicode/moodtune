@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { execFile as execFileCb } from 'child_process'
+import { execFile as execFileCb, execFileSync } from 'child_process'
 import { join } from 'path'
 import { promisify } from 'util'
 
@@ -9,8 +9,17 @@ import { TEMP_DIR } from '$/lib/paths'
 
 const log = createLogger('ffmpeg')
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const ffmpegPath: string = require('ffmpeg-static')
+const resolveFfmpegPath = (): string => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const staticPath: string = require('ffmpeg-static')
+    execFileSync(staticPath, ['-version'], { stdio: 'ignore', timeout: 5000 })
+    return staticPath
+  } catch {
+    return 'ffmpeg' // fall back to system binary
+  }
+}
+const FFMPEG_PATH = resolveFfmpegPath()
 
 const execFile = promisify(execFileCb)
 
@@ -21,7 +30,7 @@ export const TARGET_BYTES_PER_SEC = (TARGET_BITRATE_KBPS * 1000) / 8
 /** Compress audio to AAC/M4A. Returns the output file path — caller must clean up. */
 export const compressToM4a = async (inputPath: string): Promise<string> => {
   const outputPath = join(TEMP_DIR, `moodtune-out-${crypto.randomUUID()}.m4a`)
-  await execFile(ffmpegPath, [
+  await execFile(FFMPEG_PATH, [
     '-i',
     inputPath,
     '-c:a',
