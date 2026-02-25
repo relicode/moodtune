@@ -63,5 +63,8 @@
     "tsx": "^4",
     "typescript": "^5",
     "vitest": "^4.0.18"
+  },
+  "optionalDependencies": {
+    "@img/sharp-linuxmusl-arm64": "^0.34.5"
   }
 }

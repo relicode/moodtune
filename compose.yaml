@@ -1,8 +1,15 @@
+# Moodtune services
+#
+# All services are bound to 127.0.0.1 only.
+# JWT_SECRET must be set in .env; prod.sh validates this before starting.
+#
+# Production: ./prod.sh up -d     (validates env, starts full stack with Caddy)
+# Dev infra:  docker compose up redis minio  (run app on host with npm run dev)
+
 services:
   moodtune-app:
-    image: node:24-alpine
+    build: .
     restart: unless-stopped
-    profiles: [app]
     env_file: .env
     environment:
       - REDIS_URL=redis://redis:6379
@@ -10,17 +17,27 @@ services:
       - UPLOAD_TMP_DIR=/tmp/uploads
       - LOG_DIR=/var/log/moodtune
     ports:
-      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:3333:3000'
     expose:
       - 3000
-    working_dir: /app
     volumes:
-      - ./.next/standalone:/app
-      - ./.next/static:/app/.next/static
-      - ./public:/app/public
       - ./data/uploads:/tmp/uploads
       - ./data/log:/var/log/moodtune
-    command: node server.js
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1536M
+        reservations:
+          memory: 512M
+    networks:
+      - caddy
+      - default
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
   redis:
     image: redis:8-alpine
@@ -32,19 +49,33 @@ services:
     volumes:
       - ./data/redis:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio
     restart: unless-stopped
     ports:
       - '127.0.0.1:9000:9000'
-      - '127.0.0.1:9001:9001'
     expose:
       - 9000
-      - 9001
     volumes:
       - ./data/minio:/data
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    command: server /data --console-address ":9001"
+    command: server /data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  caddy:
+    name: caddy

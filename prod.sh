@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cd "$(dirname "$0")"
+
 # Source .env so we can validate required variables
 if [[ -f .env ]]; then
   set -a
@@ -14,4 +16,5 @@ if [[ "${JWT_SECRET:-change-me-to-a-random-secret}" == "change-me-to-a-random-se
   exit 1
 fi
 
-exec docker compose -f compose.yaml -f compose.production.yaml "$@"
+# The root services compose includes moodtune + Caddy
+exec docker compose -f ../compose.yaml "$@"
