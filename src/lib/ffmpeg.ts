@@ -5,7 +5,7 @@ import { join } from 'path'
 import { promisify } from 'util'
 
 import { createLogger } from '$/lib/logger'
-import { TEMP_DIR } from '$/lib/paths'
+import { getTempDir } from '$/lib/paths'
 
 const log = createLogger('ffmpeg')
 
@@ -29,7 +29,7 @@ export const TARGET_BYTES_PER_SEC = (TARGET_BITRATE_KBPS * 1000) / 8
 
 /** Compress audio to AAC/M4A. Returns the output file path — caller must clean up. */
 export const compressToM4a = async (inputPath: string): Promise<string> => {
-  const outputPath = join(TEMP_DIR, `moodtune-out-${crypto.randomUUID()}.m4a`)
+  const outputPath = join(getTempDir(), `moodtune-out-${crypto.randomUUID()}.m4a`)
   await execFile(FFMPEG_PATH, [
     '-i',
     inputPath,

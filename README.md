@@ -88,7 +88,7 @@ src/
 
 - **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
 - **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
-- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. The code tries `ffprobe-static`/`ffmpeg-static` npm binaries first and falls back to system binaries (the Docker image installs ffmpeg via `apk`). Max upload size is 2048 MB. Temp directory is configurable via `UPLOAD_TMP_DIR` (defaults to `/var/tmp`).
+- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. The code tries `ffprobe-static`/`ffmpeg-static` npm binaries first and falls back to system binaries (the Docker image installs ffmpeg via `apk`). Max upload size is 2048 MB. Temp directory is configured via `UPLOAD_TMP_DIR` (required; Compose defaults to `/var/tmp`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
 - **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
@@ -101,7 +101,7 @@ A multi-stage `Dockerfile` builds the app (deps, builder, runner with system ffm
 
 ```sh
 docker compose up redis minio       # Dev: just the backing services
-./prod.sh up -d                     # Production: full stack (validates JWT_SECRET)
+./prod.sh up -d                     # Production: full stack (compose validates required env vars)
 ./prod.sh up -d --build moodtune-app  # Rebuild and redeploy the app
 ```
 
@@ -111,7 +111,7 @@ docker compose up redis minio       # Dev: just the backing services
 
 ## Production Deployment
 
-`prod.sh` validates `JWT_SECRET` from `.env`, then runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Caddy reverse proxies to `moodtune-app:3000` on a shared `caddy` network.
+`prod.sh` runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Required env vars (`JWT_SECRET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`) are validated at startup via `${VAR:?}` interpolation in `compose.yaml`. Caddy reverse proxies to `moodtune-app:3000` on a shared `caddy` network.
 
 **Seed in production** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
 

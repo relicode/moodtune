@@ -12,5 +12,9 @@ export default defineConfig({
     include: ['__tests__/**/*.test.ts'],
     exclude: ['__tests__/e2e/**'],
     reporters: ['tree'],
+    env: {
+      LOG_DIR: './data/log',
+      UPLOAD_TMP_DIR: '/var/tmp',
+    },
   },
 })

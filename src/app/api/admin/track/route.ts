@@ -9,7 +9,7 @@ import type { AudioMetadata } from '$/lib/ffprobe'
 import { extractMetadata } from '$/lib/ffprobe'
 import { parseFilename, sanitizeExtension } from '$/lib/filename'
 import { createLogger } from '$/lib/logger'
-import { TEMP_DIR } from '$/lib/paths'
+import { getTempDir } from '$/lib/paths'
 import { getSessionFromCookie } from '$/lib/session'
 import { streamToFile } from '$/lib/stream'
 import { UserRole } from '$/types'
@@ -46,7 +46,7 @@ export const POST = async (request: Request) => {
   const ext = sanitizeExtension(audioFile.name)
   const originalFileName = `audio/${crypto.randomUUID()}.${ext}`
 
-  const tmpFile = join(TEMP_DIR, `moodtune-${crypto.randomUUID()}`)
+  const tmpFile = join(getTempDir(), `moodtune-${crypto.randomUUID()}`)
   await streamToFile(audioFile.stream(), tmpFile)
 
   let compressedFile: string | null = null

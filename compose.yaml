@@ -1,27 +1,37 @@
+name: moodtune
+
 # Moodtune services
 #
 # All services are bound to 127.0.0.1 only.
-# JWT_SECRET must be set in .env; prod.sh validates this before starting.
+# Required env vars (JWT_SECRET, MINIO_ACCESS_KEY, MINIO_SECRET_KEY) are
+# validated at startup via ${VAR:?} — compose will fail with a clear error
+# if any are missing from .env.
 #
-# Production: ./prod.sh up -d     (validates env, starts full stack with Caddy)
+# Production: ./prod.sh up -d
 # Dev infra:  docker compose up redis minio  (run app on host with npm run dev)
 
 services:
   moodtune-app:
     build: .
     restart: unless-stopped
-    env_file: .env
     environment:
-      - REDIS_URL=redis://redis:6379
-      - MINIO_ENDPOINT=minio
-      - UPLOAD_TMP_DIR=/tmp/uploads
-      - LOG_DIR=/var/log/moodtune
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      LOG_DIR: ${LOG_DIR:-/var/log/moodtune}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-moodtune}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+      REDIS_URL: redis://redis:6379
+      UPLOAD_TMP_DIR: ${UPLOAD_TMP_DIR:-/var/tmp}
     ports:
-      - '127.0.0.1:3333:3000'
-    expose:
-      - 3000
+      - '127.0.0.1:${APP_PORT:-3333}:3000'
     volumes:
-      - ./data/uploads:/tmp/uploads
+      - ./data/uploads:/var/tmp
       - ./data/log:/var/log/moodtune
     deploy:
       resources:
@@ -43,9 +53,7 @@ services:
     image: redis:8-alpine
     restart: unless-stopped
     ports:
-      - '127.0.0.1:6379:6379'
-    expose:
-      - 6379
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - ./data/redis:/data
     command: redis-server --appendonly yes
@@ -60,9 +68,7 @@ services:
     image: minio/minio
     restart: unless-stopped
     ports:
-      - '127.0.0.1:9000:9000'
-    expose:
-      - 9000
+      - '127.0.0.1:${MINIO_PORT:-9000}:9000'
     volumes:
       - ./data/minio:/data
     environment:
