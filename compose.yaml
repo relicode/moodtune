@@ -19,7 +19,6 @@ services:
     environment:
       HOSTNAME: 0.0.0.0
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
-      LOG_DIR: /data/log
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
       MINIO_BUCKET: ${MINIO_BUCKET:-moodtune}
@@ -30,11 +29,10 @@ services:
       NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
       REDIS_URL: redis://redis:6379
-      UPLOAD_TMP_DIR: /data/uploads
     ports:
       - '${PORT:-3333}:3000'
     volumes:
-      - ./.next/standalone:/app
+      - ./.next/standalone:/app:ro
       - ${DATA_DIR:?DATA_DIR must be set in .env}/bins:/data/bins:ro
       - ${DATA_DIR:?DATA_DIR must be set in .env}/uploads:/data/uploads
       - ${DATA_DIR:?DATA_DIR must be set in .env}/log:/data/log
@@ -46,7 +44,7 @@ services:
         reservations:
           memory: 512M
     networks:
-      - caddy
+      - moodtune
       - default
     depends_on:
       redis:
@@ -88,5 +86,5 @@ services:
       start_period: 10s
 
 networks:
-  caddy:
-    name: caddy
+  moodtune:
+    name: moodtune

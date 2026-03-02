@@ -18,12 +18,8 @@ const resolveBin = (name: string) => {
   return resolved
 }
 
-export const getTempDir = () => {
-  const dir = process.env.UPLOAD_TMP_DIR
-  if (!dir) throw new Error('UPLOAD_TMP_DIR must be set')
-  return dir
-}
+export const getTempDir = () => (process.env.NODE_ENV === 'production' ? '/data/uploads' : '/tmp')
 
-export const getFfmpegPath = () => process.env.FFMPEG_PATH || resolveBin('ffmpeg')
+export const getFfmpegPath = () => resolveBin('ffmpeg')
 
-export const getFfprobePath = () => process.env.FFPROBE_PATH || resolveBin('ffprobe')
+export const getFfprobePath = () => resolveBin('ffprobe')

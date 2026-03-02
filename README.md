@@ -88,16 +88,16 @@ src/
 
 - **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction. All persistent data lives outside the project at `$DATA_DIR` (required, set in `.env`).
 - **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
-- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. Static binaries for amd64 and arm64 are downloaded to `$DATA_DIR/bins/{arch}/` by the `postinstall` script. The app auto-detects the architecture via `process.arch` and checks `/data/bins/{arch}/` (container) before falling back to system PATH (dev). Max upload size is 2048 MB. Temp directory is configured via `UPLOAD_TMP_DIR` (required; Compose defaults to `/var/tmp`).
+- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. Static binaries for amd64 and arm64 are downloaded to `$DATA_DIR/bins/{arch}/` by the `postinstall` script. The app auto-detects the architecture via `process.arch` and checks `/data/bins/{arch}/` (container) before falling back to system PATH (dev). Max upload size is 2048 MB. Temp directory is `/data/uploads` in production and `/tmp` in dev (determined by `NODE_ENV`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
 - **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
-- **Logging** uses pino for structured JSON logging to `./data/log/app.log` (plus `pino-pretty` to stdout in dev). Set `LOG_LEVEL` env var to control verbosity (defaults to `debug` in dev, `info` in production). Covers auth, route guards, admin actions, uploads, streaming, and analytics.
+- **Logging** uses pino for structured JSON logging. In production, logs write to `/data/log/app.log`; in dev, logs go to stdout only via `pino-pretty`. Set `LOG_LEVEL` env var to control verbosity (defaults to `debug` in dev, `info` in production). Covers auth, route guards, admin actions, uploads, streaming, and analytics.
 - **Analytics** (optional): set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in `.env` to enable Umami page-view tracking. The AudioPlayer also sends `track-play`, `track-complete`, and `track-skip` events to both Umami and the server-side `/api/analytics` endpoint for structured logging.
 
 ## Docker
 
-The app is built on the host and volume-mounted into a stock `node:24-slim` container (no Dockerfile). `compose.yaml` defines all services with production settings (healthchecks, resource limits, Caddy network). All data volumes are mapped from `$DATA_DIR` (required).
+The app is built on the host and volume-mounted into a stock `node:24-slim` container (no Dockerfile). `compose.yaml` defines all services with production settings (healthchecks, resource limits, moodtune network). All data volumes are mapped from `$DATA_DIR` (required).
 
 ```sh
 docker compose up redis minio       # Dev: just the backing services
@@ -111,7 +111,7 @@ docker compose up redis minio       # Dev: just the backing services
 
 ## Production Deployment
 
-`prod.sh` runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Required env vars (`JWT_SECRET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`) are validated at startup via `${VAR:?}` interpolation in `compose.yaml`. Caddy reverse proxies to `moodtune-app:3000` on a shared `caddy` network.
+`prod.sh` runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Required env vars (`JWT_SECRET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`) are validated at startup via `${VAR:?}` interpolation in `compose.yaml`. Caddy reverse proxies to `moodtune-app:3000` on a shared `moodtune` network.
 
 **Seed in production** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
 
