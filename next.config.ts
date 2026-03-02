@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   allowedDevOrigins: ['192.168.10.20'],
   poweredByHeader: false,
-  serverExternalPackages: ['ioredis', 'ffmpeg-static', 'ffprobe-static', 'sharp', 'pino', 'pino-pretty'],
+  serverExternalPackages: ['ioredis', 'sharp', 'pino', 'pino-pretty'],
   turbopack: {
     root: process.cwd(),
   },

@@ -1,24 +1,13 @@
 import 'server-only'
 
-import { execFile as execFileCb, execFileSync } from 'child_process'
+import { execFile as execFileCb } from 'child_process'
 import { promisify } from 'util'
 
 import { createLogger } from '$/lib/logger'
+import { getFfprobePath } from '$/lib/paths'
 
 const execFile = promisify(execFileCb)
 const log = createLogger('ffprobe')
-
-const resolveFfprobePath = (): string => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const staticPath: string = require('ffprobe-static').path
-    execFileSync(staticPath, ['-version'], { stdio: 'ignore', timeout: 5000 })
-    return staticPath
-  } catch {
-    return 'ffprobe' // fall back to system binary
-  }
-}
-const FFPROBE_PATH = resolveFfprobePath()
 
 export type AudioMetadata = {
   duration: number
@@ -54,6 +43,13 @@ type ProbeOutput = {
 }
 
 const probe = async (filePath: string): Promise<ProbeOutput> => {
-  const { stdout } = await execFile(FFPROBE_PATH, ['-v', 'quiet', '-print_format', 'json', '-show_format', filePath])
+  const { stdout } = await execFile(getFfprobePath(), [
+    '-v',
+    'quiet',
+    '-print_format',
+    'json',
+    '-show_format',
+    filePath,
+  ])
   return JSON.parse(stdout) as ProbeOutput
 }
