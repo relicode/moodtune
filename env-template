@@ -3,9 +3,10 @@
 # Values shown are dev defaults — Compose overrides networking for containers.
 
 # moodtune-app
-APP_PORT=3333 # Host port the app is exposed on
+PORT=3333 # Host port the app is exposed on
+DATA_DIR=/tmp/data # Base data directory (logs, uploads, bins, redis, minio)
 JWT_SECRET=change-me-to-a-random-secret # JWT signing key (required, change in production)
-LOG_DIR=./data/log # Log file directory
+LOG_DIR=/tmp/data/log # Log file directory (should match DATA_DIR)
 LOG_LEVEL=debug # Pino log level (trace/debug/info/warn/error/fatal)
 NEXT_PUBLIC_UMAMI_URL= # Umami analytics script URL (leave empty to disable)
 NEXT_PUBLIC_UMAMI_WEBSITE_ID= # Umami website ID (leave empty to disable)

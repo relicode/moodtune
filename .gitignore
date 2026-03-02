@@ -36,11 +36,8 @@ yarn-error.log*
 # vercel
 .vercel
 
-# data (keep directories, ignore contents)
-/data/**
-!/data/
-!/data/*/
-!/data/*/.gitignore
+# data (external — set DATA_DIR in .env)
+/data/
 
 # typescript
 *.tsbuildinfo

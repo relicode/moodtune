@@ -86,9 +86,9 @@ src/
 
 ## Architecture
 
-- **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
+- **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction. All persistent data lives outside the project at `$DATA_DIR` (required, set in `.env`).
 - **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
-- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. The code tries `ffprobe-static`/`ffmpeg-static` npm binaries first and falls back to system binaries (the Docker image installs ffmpeg via `apk`). Max upload size is 2048 MB. Temp directory is configured via `UPLOAD_TMP_DIR` (required; Compose defaults to `/var/tmp`).
+- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. Static binaries for amd64 and arm64 are downloaded to `$DATA_DIR/bins/{arch}/` by the `postinstall` script. The app auto-detects the architecture via `process.arch` and checks `/data/bins/{arch}/` (container) before falling back to system PATH (dev). Max upload size is 2048 MB. Temp directory is configured via `UPLOAD_TMP_DIR` (required; Compose defaults to `/var/tmp`).
 - **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
 - **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
@@ -97,12 +97,12 @@ src/
 
 ## Docker
 
-A multi-stage `Dockerfile` builds the app (deps, builder, runner with system ffmpeg on Alpine). `compose.yaml` defines all services with production settings (healthchecks, resource limits, Caddy network).
+The app is built on the host and volume-mounted into a stock `node:24-slim` container (no Dockerfile). `compose.yaml` defines all services with production settings (healthchecks, resource limits, Caddy network). All data volumes are mapped from `$DATA_DIR` (required).
 
 ```sh
 docker compose up redis minio       # Dev: just the backing services
-./prod.sh up -d                     # Production: full stack (compose validates required env vars)
-./prod.sh up -d --build moodtune-app  # Rebuild and redeploy the app
+./deploy.sh                         # Production: build on host, restart app container
+./prod.sh up -d                     # Full stack (compose validates required env vars)
 ```
 
 - **Redis** on port 6379 (persistent with AOF)

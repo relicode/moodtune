@@ -2,7 +2,7 @@ name: moodtune
 
 # Moodtune services
 #
-# All services are bound to 127.0.0.1 only.
+# All services but moodtune-app are bound to 127.0.0.1 only.
 # Required env vars (JWT_SECRET, MINIO_ACCESS_KEY, MINIO_SECRET_KEY) are
 # validated at startup via ${VAR:?} — compose will fail with a clear error
 # if any are missing from .env.
@@ -12,11 +12,14 @@ name: moodtune
 
 services:
   moodtune-app:
-    build: .
+    image: node:24-slim
     restart: unless-stopped
+    working_dir: /app
+    command: ['node', 'server.js']
     environment:
+      HOSTNAME: 0.0.0.0
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
-      LOG_DIR: ${LOG_DIR:-/var/log/moodtune}
+      LOG_DIR: /data/log
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
       MINIO_BUCKET: ${MINIO_BUCKET:-moodtune}
@@ -27,12 +30,14 @@ services:
       NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
       REDIS_URL: redis://redis:6379
-      UPLOAD_TMP_DIR: ${UPLOAD_TMP_DIR:-/var/tmp}
+      UPLOAD_TMP_DIR: /data/uploads
     ports:
-      - '127.0.0.1:${APP_PORT:-3333}:3000'
+      - '${PORT:-3333}:3000'
     volumes:
-      - ./data/uploads:/var/tmp
-      - ./data/log:/var/log/moodtune
+      - ./.next/standalone:/app
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/bins:/data/bins:ro
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/uploads:/data/uploads
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/log:/data/log
     deploy:
       resources:
         limits:
@@ -55,7 +60,7 @@ services:
     ports:
       - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
-      - ./data/redis:/data
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/redis:/data
     command: redis-server --appendonly yes
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
@@ -70,7 +75,7 @@ services:
     ports:
       - '127.0.0.1:${MINIO_PORT:-9000}:9000'
     volumes:
-      - ./data/minio:/data
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/minio:/data
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
