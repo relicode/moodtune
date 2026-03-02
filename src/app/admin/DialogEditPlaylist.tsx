@@ -32,15 +32,18 @@ import TrackUploader from './TrackUploader'
 type SettingSwitchProps = {
   checked: boolean
   label: string
+  tooltip: string
   onChange: (checked: boolean) => void
 }
 
-const SettingSwitch = ({ checked, label, onChange }: SettingSwitchProps) => (
+const SettingSwitch = ({ checked, label, tooltip, onChange }: SettingSwitchProps) => (
   <Grid size={4}>
-    <FormControlLabel
-      control={<Switch size="small" checked={checked} onChange={(_e, v) => onChange(v)} sx={{ mr: 2 }} />}
-      label={label}
-    />
+    <Tooltip title={tooltip}>
+      <FormControlLabel
+        control={<Switch size="small" checked={checked} onChange={(_e, v) => onChange(v)} sx={{ mr: 2 }} />}
+        label={label}
+      />
+    </Tooltip>
   </Grid>
 )
 
@@ -141,7 +144,10 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               autoComplete="off"
               slotProps={{
                 input: {
-                  sx: { fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'center' },
+                  sx: { fontSize: 'inherit', fontWeight: 'inherit' },
+                },
+                htmlInput: {
+                  sx: { textAlign: 'center' },
                 },
               }}
             />
@@ -163,38 +169,19 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
           <SettingSwitch
             checked={ui.includes(PlaylistUiOption.SHUFFLE)}
             label="Shuffle"
+            tooltip="Randomize track order on each playback"
             onChange={(checked) => toggleUiOption(PlaylistUiOption.SHUFFLE, checked)}
           />
 
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)}
-            label="Show track names"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_TRACK_NAMES, checked)}
-          />
-
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)}
-            label="Show shuffle control"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE, checked)}
-          />
-
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)}
-            label="Show random control"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_RANDOM, checked)}
-          />
-
-          <Grid size={7}>
-            <Stack direction="row" alignItems="center">
-              <Typography color="text.secondary" textAlign="center">
+          <Grid size={8}>
+            <Stack direction="row" alignItems="center" gap={2}>
+              <Typography color="text.secondary" textAlign="center" sx={{ whiteSpace: 'nowrap' }}>
                 Random: {random}%
               </Typography>
               <Slider
                 value={random}
                 min={0}
                 max={100}
-                valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
                 onChange={(_e, v) => setRandom(v as number)}
                 onChangeCommitted={async (_e, v) => {
                   const result = await setBranchRandomAction(branch.id, v as number)
@@ -203,6 +190,27 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               />
             </Stack>
           </Grid>
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)}
+            label="Show random control"
+            tooltip="Show random percentage slider in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_RANDOM, checked)}
+          />
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)}
+            label="Show track names"
+            tooltip="Display track names in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_TRACK_NAMES, checked)}
+          />
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)}
+            label="Show shuffle control"
+            tooltip="Show shuffle toggle in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE, checked)}
+          />
         </Grid>
 
         <Divider sx={{ my: 2 }} />
