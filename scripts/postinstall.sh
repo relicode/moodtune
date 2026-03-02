@@ -27,7 +27,7 @@ download_arch() {
 
   # Skip if both binaries already exist
   if [ -f "$target_dir/ffmpeg" ] && [ -f "$target_dir/ffprobe" ]; then
-    echo "ffmpeg/ffprobe already present for $arch — skipping"
+    echo "ffmpeg & ffprobe already present for $target_dir — skipping"
     return
   fi
 
