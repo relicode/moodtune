@@ -101,6 +101,7 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
   const totalDuration = tracks.reduce((acc, cur) => acc + cur.duration, 0)
 
   const audioRef = useRef<HTMLAudioElement>(null)
+  const preloadRef = useRef<HTMLAudioElement>(null)
   const lastReportedTrackRef = useRef<string | null>(null)
   const confirm = useConfirm()
   const { showSnackbar } = useSnackbar()
@@ -206,6 +207,127 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reportTrack is stable via React Compiler
   }, [currentIndex, isPlaying, tracks])
 
+  // Media Session: metadata
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return
+    const detailed = isDetailedTrack(currentTrack)
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: detailed ? currentTrack.name : `Track ${currentIndex + 1}`,
+      artist: (detailed && currentTrack.artist) || playlist.name,
+      album: playlist.name,
+      artwork: [
+        { src: '/icons/192', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/512', sizes: '512x512', type: 'image/png' },
+      ],
+    })
+  }, [currentTrack, currentIndex, playlist.name])
+
+  // Media Session: action handlers
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+      [
+        'play',
+        () => {
+          audio.play().catch(() => {})
+          setIsPlaying(true)
+        },
+      ],
+      [
+        'pause',
+        () => {
+          audio.pause()
+          setIsPlaying(false)
+        },
+      ],
+      [
+        'nexttrack',
+        () => {
+          if (currentIndex < tracks.length - 1) {
+            loadAndPlay(currentIndex + 1)
+          } else {
+            regenerate()
+          }
+        },
+      ],
+      ['previoustrack', currentIndex > 0 ? () => loadAndPlay(currentIndex - 1) : null],
+      [
+        'stop',
+        () => {
+          audio.pause()
+          audio.currentTime = 0
+          setIsPlaying(false)
+        },
+      ],
+      [
+        'seekto',
+        (details: MediaSessionActionDetails) => {
+          if (details.seekTime != null && Number.isFinite(audio.duration)) {
+            audio.currentTime = Math.min(details.seekTime, audio.duration)
+          }
+        },
+      ],
+    ]
+
+    for (const [action, handler] of handlers) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler)
+      } catch {
+        // Action not supported
+      }
+    }
+
+    return () => {
+      for (const [action] of handlers) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null)
+        } catch {
+          // Action not supported
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAndPlay and regenerate are stable via React Compiler
+  }, [currentIndex, tracks])
+
+  // Media Session: playback state and position
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+
+    const audio = audioRef.current
+    if (audio && 'setPositionState' in navigator.mediaSession && audio.duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime,
+        })
+      } catch {
+        // Invalid state (position > duration during seek, etc.)
+      }
+    }
+  }, [isPlaying, currentIndex, duration])
+
+  // Preload next track
+  useEffect(() => {
+    const preload = preloadRef.current
+    if (!preload) return
+    const nextTrack = tracks[currentIndex + 1]
+    if (nextTrack) {
+      preload.src = nextTrack.url
+    } else {
+      preload.removeAttribute('src')
+      preload.load()
+    }
+    return () => {
+      preload.removeAttribute('src')
+      preload.load()
+    }
+  }, [currentIndex, tracks])
+
   const VolumeIcon = muted || volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon
 
   const loadAndPlay = (index: number) => {
@@ -245,6 +367,7 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
       }}
     >
       <audio ref={audioRef} src={audioSrc || undefined} hidden />
+      <audio ref={preloadRef} preload="auto" hidden />
 
       {isAdmin && (
         <Tooltip title={adminView ? 'Showing admin view' : 'Showing user view'}>
