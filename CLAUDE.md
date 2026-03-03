@@ -34,10 +34,10 @@ Required env vars include `JWT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, Redi
   - **`src/app/api/`** — REST API routes (admin CRUD, audio streaming, playlist)
   - **`src/app/admin/`** — Admin dashboard page, layout, and components (dialog-based CRUD for venues, branches, tracks, users). `DialogEditBranch` edits folder name/image; `DialogEditPlaylist` edits playlist settings and tracks.
 - **`src/actions/`** — Server Actions (`admin.ts`, `auth.ts`, `branches.ts`) and utilities (`media.ts` — synchronous image proxy URL builder)
-- **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `LoginForm`, `VenueBottomNav`)
+- **`src/components/`** — Shared React components (`AudioPlayer`, `BranchGrid`, `InstallButton`, `LoginForm`, `VenueBottomNav`)
 - **`src/data/`** — Data access layer built on `dal.ts` (thin Redis abstraction with UUID gen, typed serialization); modules for branches, tracks, venues, users, redis, minio
-- **`src/hooks/`** — Custom React hooks (`useSnackbar` — shared snackbar context via `SnackbarProvider` in ThemeRegistry)
-- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `paths.ts`, `stream.ts`, `utils.ts`, `logger.ts`, `analytics.ts`, `request.ts`)
+- **`src/hooks/`** — Custom React hooks (`useSnackbar` — shared snackbar context via `SnackbarProvider` in ThemeRegistry; `useServiceWorker` — `beforeinstallprompt` capture and service worker registration via `ServiceWorkerProvider` in ThemeRegistry)
+- **`src/lib/`** — Shared utilities (`session.ts`, `ffprobe.ts`, `ffmpeg.ts`, `filename.ts`, `paths.ts`, `stream.ts`, `utils.ts`, `logger.ts`, `analytics.ts`, `request.ts`, `icon.tsx`)
 - **`src/proxy.ts`** — Middleware: JWT verification, route guards (`/admin` requires admin role, `/venue/[venueId]` requires venue access), sliding token refresh
 - **`src/types/`** — TypeScript type definitions
 - **`src/theme.ts`** — MUI theme config (CSS variables, light/dark color schemes, Inter font)
@@ -55,6 +55,15 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 - `GET /api/image/[...path]` — proxy images from MinIO through the server (auth required, path-traversal protected)
 - `GET /api/playlist/[playlistId]` — playlist tracks with role-based filtering
 - `POST /api/analytics` — client-side track analytics relay (auth required, validates event names against allowlist, logs to pino)
+- `GET /icons/[size]` — dynamically generated PNG app icon at the requested pixel size (16–1024); used by the manifest for 192px and 512px icons
+
+## PWA
+
+- **Manifest** (`src/app/manifest.ts`) — Next.js metadata route exporting `MetadataRoute.Manifest` with app identity (`id: '/'`), standalone display, theme colors from `src/theme.ts`, and icon references to `/icons/192` and `/icons/512`.
+- **Viewport** — Exported from `src/app/layout.tsx` with `device-width`, light/dark `themeColor` matching the MUI theme palette.
+- **Icons** — Programmatically generated via `next/og` `ImageResponse` (Satori). A shared generator in `src/lib/icon.tsx` renders a white MusicNote SVG on the primary theme color (`#00796B`). Consumed by `src/app/icon.tsx` (32px favicon), `src/app/apple-icon.tsx` (180px apple-touch-icon), and `src/app/icons/[size]/route.ts` (dynamic sizes for the manifest).
+- **Service worker** — `public/sw.js` is a placeholder (console log only). Registered by `ServiceWorkerProvider` in `src/hooks/useServiceWorker.tsx`.
+- **Install prompt** — `ServiceWorkerProvider` captures the `beforeinstallprompt` event (with an early module-level listener to avoid race conditions before React mounts) and exposes `deferredPrompt` via context. `InstallButton` (`src/components/InstallButton.tsx`) renders a responsive install icon (desktop/mobile) next to the login title; hidden when the app is not installable or already installed. Shows a snackbar on successful install.
 
 ## Auth and Sessions
 

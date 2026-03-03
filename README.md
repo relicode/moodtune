@@ -72,13 +72,17 @@ src/
       audio/            Audio streaming with range-request support
       image/            Image proxy (streams from MinIO, auth required)
       playlist/         Playlist tracks with role-based filtering
+    icon.tsx            Programmatic favicon (32px, via ImageResponse)
+    apple-icon.tsx      Programmatic apple-touch-icon (180px)
+    icons/[size]/       Dynamic PNG icon route for manifest (192px, 512px)
+    manifest.ts         Web app manifest (PWA metadata)
     venue/              Venue user views
       [venueId]/        Venue root (branch grid)
         [branchId]/     Folder or playlist view
   actions/              Server Actions (admin, auth, branches, media)
-  components/           Shared components (AudioPlayer, BranchGrid, LoginForm, VenueBottomNav)
+  components/           Shared components (AudioPlayer, BranchGrid, InstallButton, LoginForm, VenueBottomNav)
   data/                 Data access layer (dal.ts + entity modules for Redis/MinIO)
-  lib/                  Utilities (session, ffprobe, ffmpeg, filename, logger, analytics, request)
+  lib/                  Utilities (session, ffprobe, ffmpeg, filename, logger, analytics, request, icon)
   proxy.ts              Middleware (JWT verification, route guards, sliding token refresh)
   types/                TypeScript type definitions
   theme.ts              MUI theme config
@@ -94,6 +98,7 @@ src/
 - The app uses `output: 'standalone'` for containerized deployment.
 - **Logging** uses pino for structured JSON logging. In production, logs write to `/data/log/app.log`; in dev, logs go to stdout only via `pino-pretty`. Set `LOG_LEVEL` env var to control verbosity (defaults to `debug` in dev, `info` in production). Covers auth, route guards, admin actions, uploads, streaming, and analytics.
 - **Analytics** (optional): set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in `.env` to enable Umami page-view tracking. The AudioPlayer also sends `track-play`, `track-complete`, and `track-skip` events to both Umami and the server-side `/api/analytics` endpoint for structured logging.
+- **PWA** — The app is installable as a Progressive Web App. A web app manifest (`src/app/manifest.ts`) provides identity, theme colors, and icon references. Icons are generated programmatically using `next/og` `ImageResponse` (white MusicNote on the primary theme color) at multiple sizes: 32px favicon, 180px apple-touch-icon, and 192/512px for the manifest via a dynamic route at `/icons/[size]`. A `ServiceWorkerProvider` captures the browser's install prompt and a placeholder service worker (`public/sw.js`) is registered on mount. The `InstallButton` component shows a responsive install icon on the login page when the app is installable.
 
 ## Docker
 
