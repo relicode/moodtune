@@ -21,6 +21,7 @@ import ListItemText from '@mui/material/ListItemText'
 import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import type { StackProps } from '@mui/material/Stack'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import shuffle from 'lodash-es/shuffle'
 import { useConfirm } from 'material-ui-confirm'
@@ -246,14 +247,16 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
       <audio ref={audioRef} src={audioSrc || undefined} hidden />
 
       {isAdmin && (
-        <IconButton
-          size="large"
-          onClick={() => setAdminView((prev) => !prev)}
-          sx={{ position: 'fixed', top: 24, right: 24 }}
-          color={adminView ? 'warning' : 'default'}
-        >
-          <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
-        </IconButton>
+        <Tooltip title={adminView ? 'Showing admin view' : 'Showing user view'}>
+          <IconButton
+            size="large"
+            onClick={() => setAdminView((prev) => !prev)}
+            sx={{ position: 'fixed', top: 24, right: 24 }}
+            color={adminView ? 'warning' : 'default'}
+          >
+            <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
+          </IconButton>
+        </Tooltip>
       )}
 
       <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>

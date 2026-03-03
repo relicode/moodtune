@@ -1,7 +1,7 @@
 import 'server-only'
 
 import type { Track } from '$/types'
-import { hashCreate, hashGet, hashSet, listGetAll, listPush, listRemove } from './dal'
+import { hashCreate, hashGet, hashSet, listAll, listGetAll, listPush, listRemove, listReplace } from './dal'
 import { AUDIO_BUCKET, removeFile } from './minio'
 import redis from './redis'
 
@@ -33,6 +33,26 @@ export const removeRandomTrackFromBranch = async (branchId: string, trackId: str
 
 export const getRandomTracks = async (branchId: string): Promise<Track[]> =>
   listGetAll(`branch:${branchId}:randomTracks`, getTrack)
+
+const validateReorder = async (key: string, trackIds: string[]) => {
+  const existing = await listAll(key)
+  if (trackIds.length !== existing.length) return false
+  const sorted = [...trackIds].sort()
+  const existingSorted = [...existing].sort()
+  return sorted.every((id, i) => id === existingSorted[i])
+}
+
+export const reorderTracks = async (branchId: string, trackIds: string[]) => {
+  const key = `branch:${branchId}:tracks`
+  if (!(await validateReorder(key, trackIds))) throw new Error('Track IDs do not match existing tracks')
+  await listReplace(key, trackIds)
+}
+
+export const reorderRandomTracks = async (branchId: string, trackIds: string[]) => {
+  const key = `branch:${branchId}:randomTracks`
+  if (!(await validateReorder(key, trackIds))) throw new Error('Track IDs do not match existing random tracks')
+  await listReplace(key, trackIds)
+}
 
 export const updateTrack = async (id: string, fields: Partial<Pick<Track, 'title' | 'artist'>>) => {
   await hashSet(`track:${id}`, fields, schema)

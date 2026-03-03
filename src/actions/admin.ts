@@ -11,7 +11,14 @@ import {
   updateBranch,
 } from '$/data/branches'
 import { IMAGE_BUCKET, removeFile } from '$/data/minio'
-import { deleteTrack, removeRandomTrackFromBranch, removeTrackFromBranch, updateTrack } from '$/data/tracks'
+import {
+  deleteTrack,
+  removeRandomTrackFromBranch,
+  removeTrackFromBranch,
+  reorderRandomTracks,
+  reorderTracks,
+  updateTrack,
+} from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
   addRootBranch,
@@ -235,6 +242,30 @@ export const updateBranchImageAction = async (branchId: string, imagePath: strin
   }
 
   await updateBranch(branchId, { imagePath })
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const reorderTracksAction = async (
+  branchId: string,
+  trackIds: string[],
+  pool: 'main' | 'random' = 'main'
+): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  try {
+    if (pool === 'random') {
+      await reorderRandomTracks(branchId, trackIds)
+    } else {
+      await reorderTracks(branchId, trackIds)
+    }
+  } catch (err) {
+    log.warn({ branchId, pool, error: err instanceof Error ? err.message : 'unknown' }, 'reorder failed')
+    return { success: false, error: 'Failed to reorder tracks' }
+  }
+
+  log.info({ branchId, pool, count: trackIds.length }, 'tracks reordered')
   revalidatePath('/admin')
   return { success: true }
 }

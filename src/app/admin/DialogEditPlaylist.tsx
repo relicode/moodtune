@@ -2,7 +2,6 @@
 
 import ImageIcon from '@mui/icons-material/Image'
 import Avatar from '@mui/material/Avatar'
-import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -27,7 +26,6 @@ import { formatDuration } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
 import type { Branch } from '$/types'
 import TrackList from './TrackList'
-import TrackUploader from './TrackUploader'
 
 type SettingSwitchProps = {
   checked: boolean
@@ -54,8 +52,6 @@ type DialogEditPlaylistProps = {
 }
 
 const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) => {
-  const [trackRefreshKey, setTrackRefreshKey] = useState(0)
-  const [randomRefreshKey, setRandomRefreshKey] = useState(0)
   const [playlistName, setPlaylistName] = useState(branch.name)
   const [nameSaving, setNameSaving] = useState(false)
   const [localPreview, setLocalPreview] = useState<string | null>(null)
@@ -221,45 +217,8 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
           spacing={2}
           sx={{ minHeight: 0, flex: 1 }}
         >
-          <Stack sx={{ flex: 1, minWidth: 0 }}>
-            <Stack
-              direction="row"
-              justifyContent="center"
-              alignItems="center"
-              spacing={1}
-              sx={{ mb: 2, flexShrink: 0 }}
-            >
-              <Typography variant="subtitle2">
-                Tracks{mainDuration > 0 && ` (${formatDuration(mainDuration, 'long')})`}
-              </Typography>
-              <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
-            </Stack>
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-              <TrackList branchId={branch.id} refreshKey={trackRefreshKey} onDurationChange={setMainDuration} />
-            </Box>
-          </Stack>
-          <Stack sx={{ flex: 1, minWidth: 0 }}>
-            <Stack
-              direction="row"
-              justifyContent="center"
-              alignItems="center"
-              spacing={1}
-              sx={{ mb: 2, flexShrink: 0 }}
-            >
-              <Typography variant="subtitle2">
-                Random Tracks{randomDuration > 0 && ` (${formatDuration(randomDuration, 'long')})`}
-              </Typography>
-              <TrackUploader branchId={branch.id} pool="random" onUploaded={() => setRandomRefreshKey((k) => k + 1)} />
-            </Stack>
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-              <TrackList
-                branchId={branch.id}
-                refreshKey={randomRefreshKey}
-                pool="random"
-                onDurationChange={setRandomDuration}
-              />
-            </Box>
-          </Stack>
+          <TrackList branchId={branch.id} onDurationChange={setMainDuration} />
+          <TrackList branchId={branch.id} pool="random" onDurationChange={setRandomDuration} />
         </Stack>
       </DialogContent>
       <DialogActions>

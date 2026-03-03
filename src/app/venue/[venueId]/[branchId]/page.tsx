@@ -1,6 +1,7 @@
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import type { Metadata } from 'next'
 
 import { getImageUrl } from '$/actions/media'
 import AudioPlayer from '$/components/AudioPlayer'
@@ -12,6 +13,17 @@ import { getVenue } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, PlaylistUiOption, UserRole } from '$/types'
 import type { Playlist, PlaylistTrack, Track } from '$/types'
+
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ venueId: string; branchId: string }>
+}): Promise<Metadata> => {
+  const { venueId, branchId } = await params
+  const [branch, venue] = await Promise.all([getBranch(branchId), getVenue(venueId)])
+  const title = [branch?.name, venue?.name].filter(Boolean).join(' | ') || 'Moodtune'
+  return { title, description: 'Curated playlists by anssi.siren.codes' }
+}
 
 const MAX_ANCESTOR_DEPTH = 10
 

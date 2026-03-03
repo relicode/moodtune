@@ -91,6 +91,14 @@ export const listRemove = async (key: string, value: string) => {
 
 export const listAll = async (key: string): Promise<string[]> => redis.lrange(key, 0, -1)
 
+export const listReplace = async (key: string, values: string[]) => {
+  const multi = redis.multi()
+  multi.del(key)
+  if (values.length > 0) multi.rpush(key, ...values)
+  await multi.exec()
+  log.debug({ key, count: values.length }, 'list replaced')
+}
+
 export const listGetAll = async <T>(key: string, getter: (id: string) => Promise<T | null>): Promise<T[]> => {
   const ids = await listAll(key)
   const items = await Promise.all(ids.map(getter))
