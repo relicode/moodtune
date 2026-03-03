@@ -3,10 +3,12 @@
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useActionState } from 'react'
 
+import InstallButton from '$/components/InstallButton'
 import type { ActionResult } from '$/types'
 
 type LoginFormProps = {
@@ -31,9 +33,10 @@ const LoginForm = ({ title, action }: LoginFormProps) => {
         gap: 2,
       }}
     >
-      <Typography variant="h4" textAlign="center">
-        {title}
-      </Typography>
+      <Stack direction="row" gap={2} alignItems="center" justifyContent="center">
+        <Typography variant="h4">{title}</Typography>
+        <InstallButton />
+      </Stack>
 
       {state.error && <Alert severity="error">{state.error}</Alert>}
 
