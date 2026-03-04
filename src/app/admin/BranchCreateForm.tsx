@@ -16,10 +16,9 @@ import TextField from '@mui/material/TextField'
 import { useActionState, useRef, useState } from 'react'
 
 import { createBranchAction } from '$/actions/admin'
-import { useSnackbar } from '$/hooks/useSnackbar'
 import { BranchType } from '$/types'
 import type { ActionResult } from '$/types'
-import ImagePicker from './ImagePicker'
+import ImageUpload from './ImageUpload'
 
 type BranchCreateFormProps = {
   venueId: string
@@ -31,39 +30,21 @@ type BranchCreateFormProps = {
 
 const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: BranchCreateFormProps) => {
   const formRef = useRef<HTMLFormElement>(null)
+  const [imagePath, setImagePath] = useState<string | null>(null)
   const [imageKey, setImageKey] = useState(0)
-  const { showSnackbar } = useSnackbar()
   const label = parentId ? 'New sub-branch' : 'New branch'
 
   const [, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venueId)
       if (parentId) formData.set('parentId', parentId)
-
-      const imageFile = formData.get('image') as File | null
-      if (imageFile && imageFile.size > 0) {
-        const imageData = new FormData()
-        imageData.set('image', imageFile)
-        try {
-          const res = await fetch('/api/admin/image', { method: 'POST', body: imageData })
-          if (!res.ok) {
-            showSnackbar('Failed to upload image', 'error')
-            setImageKey((k) => k + 1)
-            return { success: false, error: 'Image upload failed' }
-          }
-          const { imagePath } = (await res.json()) as { imagePath: string }
-          formData.set('imagePath', imagePath)
-        } catch {
-          showSnackbar('Failed to upload image', 'error')
-          setImageKey((k) => k + 1)
-          return { success: false, error: 'Image upload failed' }
-        }
-      }
-      formData.delete('image')
+      if (imagePath) formData.set('imagePath', imagePath)
 
       const result = await createBranchAction(prev, formData)
       if (result.success) {
         formRef.current?.reset()
+        setImagePath(null)
+        setImageKey((k) => k + 1)
         onClose()
         onCreated()
       }
@@ -72,13 +53,19 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
     { success: false }
   )
 
+  const handleClose = () => {
+    setImagePath(null)
+    setImageKey((k) => k + 1)
+    onClose()
+  }
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
       <Stack component="form" ref={formRef} action={formAction}>
         <DialogTitle>{label}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
               <TextField name="name" label="Name" size="small" required autoComplete="off" sx={{ flex: 5 }} />
               <FormControl size="small" sx={{ flex: 3 }}>
                 <InputLabel>Type</InputLabel>
@@ -93,12 +80,12 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
                   </MenuItem>
                 </Select>
               </FormControl>
+              <ImageUpload key={imageKey} onUpload={setImagePath} size={40} />
             </Stack>
-            <ImagePicker key={imageKey} name="image" />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={handleClose}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={pending}>
             Add
           </Button>
