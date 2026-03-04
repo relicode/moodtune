@@ -4,7 +4,7 @@ import { execFile as execFileCb } from 'child_process'
 import { promisify } from 'util'
 
 import { createLogger } from '$/lib/logger'
-import { getFfprobePath } from '$/lib/paths'
+import { getFfprobePath, getMaxBuffer } from '$/lib/paths'
 
 const execFile = promisify(execFileCb)
 const log = createLogger('ffprobe')
@@ -43,13 +43,12 @@ type ProbeOutput = {
 }
 
 const probe = async (filePath: string): Promise<ProbeOutput> => {
-  const { stdout } = await execFile(getFfprobePath(), [
-    '-v',
-    'quiet',
-    '-print_format',
-    'json',
-    '-show_format',
-    filePath,
-  ])
+  const { stdout } = await execFile(
+    getFfprobePath(),
+    ['-v', 'quiet', '-print_format', 'json', '-show_format', filePath],
+    {
+      maxBuffer: getMaxBuffer(),
+    }
+  )
   return JSON.parse(stdout) as ProbeOutput
 }

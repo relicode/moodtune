@@ -23,3 +23,7 @@ export const getTempDir = () => (process.env.NODE_ENV === 'production' ? '/data/
 export const getFfmpegPath = () => resolveBin('ffmpeg')
 
 export const getFfprobePath = () => resolveBin('ffprobe')
+
+const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024
+
+export const getMaxBuffer = () => parseInt(process.env.FFMPEG_MAX_BUFFER ?? '', 10) || DEFAULT_MAX_BUFFER
