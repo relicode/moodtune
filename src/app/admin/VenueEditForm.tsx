@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState } from 'react'
 
 import { updateVenueAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import type { ActionResult, Venue } from '$/types'
 
 type VenueEditFormProps = {
@@ -23,7 +24,10 @@ const VenueEditForm = ({ venue, open, onClose }: VenueEditFormProps) => {
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venue.id)
       const result = await updateVenueAction(prev, formData)
-      if (result.success) onClose()
+      if (result.success) {
+        track('admin-venue-update', { venueId: venue.id, name: formData.get('name') as string })
+        onClose()
+      }
       return result
     },
     { success: false }

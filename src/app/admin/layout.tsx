@@ -4,6 +4,7 @@ import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 
+import AnalyticsIdentify from '$/components/AnalyticsIdentify'
 import { getSessionFromCookie } from '$/lib/session'
 import AdminLogoutButton from './AdminLogoutButton'
 
@@ -23,6 +24,7 @@ const AdminLayout = async ({ children }: { children: React.ReactNode }) => {
           <AdminLogoutButton />
         </Toolbar>
       </AppBar>
+      {session && <AnalyticsIdentify username={session.username} />}
       <Container maxWidth="lg" sx={{ flex: 1, py: 3 }}>
         {children}
       </Container>

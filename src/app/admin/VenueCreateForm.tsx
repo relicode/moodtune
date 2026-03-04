@@ -6,6 +6,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState, useRef } from 'react'
 
 import { createVenueAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import type { ActionResult } from '$/types'
 
 const VenueCreateForm = () => {
@@ -13,7 +14,10 @@ const VenueCreateForm = () => {
   const [, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {
       const result = await createVenueAction(prev, formData)
-      if (result.success) formRef.current?.reset()
+      if (result.success) {
+        track('admin-venue-create', { name: formData.get('name') as string })
+        formRef.current?.reset()
+      }
       return result
     },
     { success: false }

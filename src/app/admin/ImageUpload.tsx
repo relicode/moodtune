@@ -72,10 +72,7 @@ const ImageUpload = ({ existingPath, onUpload, size = 48 }: ImageUploadProps) =>
         </IconButton>
       </Tooltip>
       {uploading && (
-        <CircularProgress
-          size={size + 8}
-          sx={{ position: 'absolute', top: -4, left: -4, pointerEvents: 'none' }}
-        />
+        <CircularProgress size={size + 8} sx={{ position: 'absolute', top: -4, left: -4, pointerEvents: 'none' }} />
       )}
     </Box>
   )

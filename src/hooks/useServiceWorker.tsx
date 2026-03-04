@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
 
 type BeforeInstallPromptEvent = Event & {
   readonly platforms: string[]
@@ -42,6 +43,7 @@ export const ServiceWorkerProvider = ({ children }: { children: ReactNode }) => 
     }
 
     const handleAppInstalled = () => {
+      track('pwa-installed')
       showSnackbar('App installed', 'success')
       setDeferredPrompt(undefined)
       earlyDeferredPrompt = undefined

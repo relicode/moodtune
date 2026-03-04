@@ -11,6 +11,7 @@ import { useState } from 'react'
 
 import { updateBranchImageAction, updateBranchSettingsAction } from '$/actions/admin'
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
 import type { Branch } from '$/types'
 import ImageUpload from './ImageUpload'
 
@@ -46,7 +47,9 @@ const DialogEditBranch = ({ branch, open, onClose }: DialogEditBranchProps) => {
                 setNameSaving(true)
                 try {
                   const result = await updateBranchSettingsAction(branch.id, { name: trimmed })
-                  if (!result.success) {
+                  if (result.success) {
+                    track('admin-branch-update', { branchId: branch.id, name: trimmed })
+                  } else {
                     setName(branch.name)
                     showSnackbar(result.error ?? 'Failed to rename branch', 'error')
                   }

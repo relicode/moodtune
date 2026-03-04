@@ -21,6 +21,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { createContext, useContext, useEffect, useState } from 'react'
 
 import { deleteBranchAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import { BranchType } from '$/types'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
@@ -65,6 +66,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
     e.stopPropagation()
     const { confirmed } = await confirm({ description: `Delete branch "${branch.name}"?` })
     if (!confirmed) return
+    track('admin-branch-delete', { branchId: branch.id })
     await deleteBranchAction(venueId, branch.id, branch.parentId)
     onChanged()
   }

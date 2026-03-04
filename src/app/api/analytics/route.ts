@@ -3,17 +3,44 @@ import { getSessionFromCookie } from '$/lib/session'
 
 const log = createLogger('analytics')
 
-const ALLOWED_EVENTS = new Set(['track-play', 'track-complete', 'track-skip'])
+const ALLOWED_EVENTS = new Set([
+  'admin-branch-create',
+  'admin-branch-delete',
+  'admin-branch-update',
+  'admin-playlist-update',
+  'admin-track-delete',
+  'admin-track-update',
+  'admin-track-upload',
+  'admin-user-create',
+  'admin-user-delete',
+  'admin-venue-create',
+  'admin-venue-delete',
+  'admin-venue-update',
+  'auth-login-failure',
+  'auth-logout',
+  'pwa-install-prompt',
+  'pwa-installed',
+  'track-complete',
+  'track-pause',
+  'track-play',
+  'track-skip',
+])
+
 const MAX_STRING_LEN = 200
 
-const truncate = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') return undefined
-  return value.length > MAX_STRING_LEN ? value.slice(0, MAX_STRING_LEN) : value
-}
-
-const toNumber = (value: unknown): number | undefined => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
-  return value
+const sanitize = (obj: Record<string, unknown>): Record<string, unknown> => {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === 'event') continue
+    if (typeof value === 'string') {
+      result[key] = value.length > MAX_STRING_LEN ? value.slice(0, MAX_STRING_LEN) : value
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      result[key] = value
+    } else if (typeof value === 'boolean') {
+      result[key] = value
+    }
+  }
+  return result
 }
 
 export const POST = async (request: Request) => {
@@ -29,8 +56,8 @@ export const POST = async (request: Request) => {
     return new Response(null, { status: 400 })
   }
 
-  const event = body.event as string | undefined
-  if (!event || !ALLOWED_EVENTS.has(event)) {
+  const event = body.event
+  if (typeof event !== 'string' || !ALLOWED_EVENTS.has(event)) {
     return new Response(null, { status: 400 })
   }
 
@@ -39,13 +66,7 @@ export const POST = async (request: Request) => {
       event,
       userId: session.userId,
       username: session.username,
-      playlistId: truncate(body.playlistId),
-      playlistName: truncate(body.playlistName),
-      trackId: truncate(body.trackId),
-      trackName: truncate(body.trackName),
-      artist: truncate(body.artist),
-      trackDuration: toNumber(body.trackDuration),
-      listenedDuration: toNumber(body.listenedDuration),
+      ...sanitize(body),
     },
     `analytics: ${event}`
   )

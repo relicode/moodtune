@@ -28,8 +28,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
-import { createTrackReporter } from '$/lib/analytics'
-import type { TrackInfo } from '$/lib/analytics'
+import { track as trackEvent } from '$/lib/analytics'
 import { formatDuration } from '$/lib/utils'
 import { PlaylistUiOption } from '$/types'
 import type { Playlist, PlaylistTrack } from '$/types'
@@ -37,18 +36,11 @@ import type { Playlist, PlaylistTrack } from '$/types'
 type AudioPlayerProps<A extends boolean> = {
   playlist: Playlist<A>
   isAdmin: A
-  username?: string
 }
 
 type AnyTrack = PlaylistTrack<boolean>
 
-const isDetailedTrack = (track: AnyTrack): track is PlaylistTrack<true> => 'name' in track
-
-const toTrackInfo = (track: AnyTrack): TrackInfo => ({
-  id: track.id,
-  duration: track.duration,
-  ...(isDetailedTrack(track) ? { name: track.name, artist: track.artist } : {}),
-})
+const isDetailedTrack = (t: AnyTrack): t is PlaylistTrack<true> => 'name' in t
 
 const generateTracklist = (
   playlist: Playlist<boolean>,
@@ -85,7 +77,7 @@ const GridCell = (props: StackProps) => (
   </Grid>
 )
 
-const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>) => {
+const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const [adminView, setAdminView] = useState(isAdmin)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
@@ -105,7 +97,15 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
   const lastReportedTrackRef = useRef<string | null>(null)
   const confirm = useConfirm()
   const { showSnackbar } = useSnackbar()
-  const reportTrack = createTrackReporter(playlist.id, playlist.name, username)
+
+  const trackData = (t: AnyTrack, extra?: Record<string, unknown>) => ({
+    playlistId: playlist.id,
+    playlistName: playlist.name,
+    trackId: t.id,
+    trackDuration: t.duration,
+    ...(isDetailedTrack(t) ? { trackName: t.name, artist: t.artist } : {}),
+    ...extra,
+  })
 
   const showTrackList = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
   const showShuffleControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
@@ -175,7 +175,7 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
 
     const onEnded = () => {
       if (currentTrack) {
-        reportTrack('track-complete', toTrackInfo(currentTrack), { listenedDuration: audio.duration || 0 })
+        trackEvent('track-complete', trackData(currentTrack, { listenedDuration: audio.duration || 0 }))
       }
       if (currentIndex < tracks.length - 1) {
         setCurrentIndex(currentIndex + 1)
@@ -203,8 +203,8 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
     if (!isPlaying || !currentTrack) return
     if (currentTrack.id === lastReportedTrackRef.current) return
     lastReportedTrackRef.current = currentTrack.id
-    reportTrack('track-play', toTrackInfo(currentTrack))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reportTrack is stable via React Compiler
+    trackEvent('track-play', trackData(currentTrack))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trackData is stable via React Compiler
   }, [currentIndex, isPlaying, tracks])
 
   // Media Session: metadata
@@ -334,7 +334,7 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
     const audio = audioRef.current
     if (!tracks[index] || !audio) return
     if (isPlaying && currentTrack && tracks[index].id !== currentTrack.id) {
-      reportTrack('track-skip', toTrackInfo(currentTrack), { listenedDuration: audio.currentTime })
+      trackEvent('track-skip', trackData(currentTrack, { listenedDuration: audio.currentTime }))
     }
     setCurrentIndex(index)
     setIsPlaying(true)
@@ -467,6 +467,8 @@ const AudioPlayer = ({ playlist, isAdmin, username }: AudioPlayerProps<boolean>)
                 if (isPlaying) {
                   audio.pause()
                   setIsPlaying(false)
+                  if (currentTrack)
+                    trackEvent('track-pause', trackData(currentTrack, { listenedDuration: audio.currentTime }))
                 } else {
                   await audio.play()
                   setIsPlaying(true)

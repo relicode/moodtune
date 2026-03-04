@@ -15,6 +15,7 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 
 import { createVenueUserAction, deleteVenueUserAction } from '$/actions/admin'
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
 import type { ActionResult, User } from '$/types'
 
 type UserManagerProps = {
@@ -50,6 +51,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
       formData.set('venueId', venueId)
       const result = await createVenueUserAction(prev, formData)
       if (result.success) {
+        track('admin-user-create', { username: formData.get('username') as string })
         formRef.current?.reset()
         loadUsers()
       } else if (result.error) {
@@ -63,6 +65,7 @@ const UserManager = ({ venueId }: UserManagerProps) => {
   const handleDeleteUser = async (userId: string, username: string) => {
     const { confirmed } = await confirm({ description: `Remove user "${username}"?` })
     if (!confirmed) return
+    track('admin-user-delete', { userId })
     await deleteVenueUserAction(venueId, userId)
     loadUsers()
   }

@@ -84,8 +84,9 @@ Path alias: `$/*` maps to `./src/*` (e.g., `import Foo from '$/components/Foo'`)
 ## Analytics
 
 - **Umami** (optional) for client-side page-view and event analytics. Configured via `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` env vars. The script tag is conditionally rendered in `src/app/layout.tsx`.
-- **Client analytics** (`src/lib/analytics.ts`) sends `track-play`, `track-complete`, and `track-skip` events from the AudioPlayer to both the server-side `/api/analytics` endpoint and Umami.
-- **Server analytics endpoint** (`POST /api/analytics`) requires authentication, validates event names against an allowlist, truncates untrusted string fields, and logs structured data via pino.
+- **Client analytics** (`src/lib/analytics.ts`) provides `track(event, data?)` and `identify(username)` functions. `track` sends events to both the server-side `/api/analytics` endpoint and Umami. `identify` sets the Umami user identity. The `AnalyticsIdentify` component (`src/components/AnalyticsIdentify.tsx`) calls `identify` on mount in both the venue and admin layouts.
+- **Analytics events**: Playback: `track-play`, `track-pause`, `track-skip`, `track-complete`. Auth: `auth-login-failure`, `auth-logout`. PWA: `pwa-install-prompt`, `pwa-installed`. Admin: `admin-venue-create`, `admin-venue-update`, `admin-venue-delete`, `admin-branch-create`, `admin-branch-update`, `admin-branch-delete`, `admin-playlist-update`, `admin-track-upload`, `admin-track-update`, `admin-track-delete`, `admin-user-create`, `admin-user-delete`.
+- **Server analytics endpoint** (`POST /api/analytics`) requires authentication, validates event names against an allowlist (`ALLOWED_EVENTS`), sanitizes untrusted values (truncates strings, filters to string/number/boolean types), and logs structured data via pino.
 - **Type declarations** for the Umami global are in `src/types/umami.d.ts`.
 - **IP extraction** utility at `src/lib/request.ts` reads `x-forwarded-for` (first hop) or `x-real-ip` for logging behind reverse proxies. Caddy is configured to override both `X-Forwarded-For` and `X-Real-IP` with `{remote_host}` to prevent client spoofing (see `~/services/Caddyfile`).
 

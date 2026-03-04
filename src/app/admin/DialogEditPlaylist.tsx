@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react'
 import { setBranchRandomAction, updateBranchImageAction, updateBranchSettingsAction } from '$/actions/admin'
 import { getImageUrl } from '$/actions/media'
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
 import { formatDuration } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
 import type { Branch } from '$/types'
@@ -122,7 +123,9 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
                   setNameSaving(true)
                   try {
                     const result = await updateBranchSettingsAction(branch.id, { name: trimmed })
-                    if (!result.success) {
+                    if (result.success) {
+                      track('admin-playlist-update', { branchId: branch.id, name: trimmed })
+                    } else {
                       setPlaylistName(branch.name)
                       showSnackbar(result.error ?? 'Failed to rename playlist', 'error')
                     }

@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState, useRef, useState } from 'react'
 
 import { createBranchAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import { BranchType } from '$/types'
 import type { ActionResult } from '$/types'
 import ImageUpload from './ImageUpload'
@@ -42,6 +43,7 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
 
       const result = await createBranchAction(prev, formData)
       if (result.success) {
+        track('admin-branch-create', { venueId, name: formData.get('name') as string })
         formRef.current?.reset()
         setImagePath(null)
         setImageKey((k) => k + 1)

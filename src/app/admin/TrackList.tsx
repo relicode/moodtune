@@ -25,6 +25,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useState } from 'react'
 
 import { removeTrackAction, reorderTracksAction } from '$/actions/admin'
+import { track as trackEvent } from '$/lib/analytics'
 import { formatDuration } from '$/lib/utils'
 import type { Track } from '$/types'
 import TrackEditForm from './TrackEditForm'
@@ -56,6 +57,7 @@ const TrackItem = ({ branchId, track, pool, onChanged, sortable }: TrackItemProp
   const handleDelete = async () => {
     const { confirmed } = await confirm({ description: `Remove track "${track.title}"?` })
     if (!confirmed) return
+    trackEvent('admin-track-delete', { trackId: track.id })
     await removeTrackAction(branchId, track.id, pool)
     onChanged()
   }

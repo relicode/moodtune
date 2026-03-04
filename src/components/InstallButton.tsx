@@ -8,6 +8,7 @@ import Tooltip from '@mui/material/Tooltip'
 import useMediaQuery from '@mui/material/useMediaQuery'
 
 import { useServiceWorker } from '$/hooks/useServiceWorker'
+import { track } from '$/lib/analytics'
 
 const InstallButton = () => {
   const { deferredPrompt } = useServiceWorker()
@@ -17,6 +18,7 @@ const InstallButton = () => {
   if (!deferredPrompt) return null
 
   const handleClick = () => {
+    track('pwa-install-prompt')
     deferredPrompt.prompt()
   }
 
