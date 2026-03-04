@@ -13,6 +13,7 @@ name: moodtune
 services:
   moodtune-app:
     image: node:24-slim
+    # user: '1001:100'
     restart: unless-stopped
     working_dir: /app
     command: ['node', 'server.js']
