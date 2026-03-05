@@ -11,6 +11,6 @@ echo "Building..."
 npm run build
 
 echo "Restarting moodtune-app..."
-docker compose up -d --force-recreate --remove-orphans moodtune-app
+./prod.sh up -d --force-recreate moodtune-app
 
 echo "Done."

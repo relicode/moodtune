@@ -54,7 +54,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
         'Content-Type': contentType,
         'Content-Length': String(fileSize),
         'Accept-Ranges': 'bytes',
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'public, max-age=31536000, immutable', // UUID filenames are unique per upload — safe to cache indefinitely
         'Content-Disposition': 'inline',
       },
     })
@@ -89,7 +89,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Content-Length': String(length),
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'public, max-age=31536000, immutable', // UUID filenames are unique per upload — safe to cache indefinitely
       'Content-Disposition': 'inline',
     },
   })

@@ -19,5 +19,7 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ ven
     .filter((u) => u !== null)
     .map(({ id, username, role, createdAt }) => ({ id, username, role, createdAt }))
 
-  return NextResponse.json({ users: safeUsers })
+  return NextResponse.json({ users: safeUsers }, {
+    headers: { 'Cache-Control': 'no-store' }, // user assignments can change anytime
+  })
 }

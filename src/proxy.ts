@@ -1,16 +1,13 @@
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { COOKIE_NAME, COOKIE_OPTIONS, JWT_ALGORITHM, SESSION_EXPIRATION, getSecret } from '$/lib/jwt'
 import { createLogger } from '$/lib/logger'
 import { getClientIp } from '$/lib/request'
 import { UserRole } from '$/types'
 import type { SessionPayload } from '$/types'
 
 const log = createLogger('proxy')
-
-const COOKIE_NAME = 'moodtune-session'
-const SESSION_MAX_AGE = 60 * 60 * 12 // 12 hours
-const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'change-me')
 
 const verifyToken = async (token: string): Promise<(SessionPayload & JWTPayload) | null> => {
   try {
@@ -24,9 +21,9 @@ const verifyToken = async (token: string): Promise<(SessionPayload & JWTPayload)
 const refreshToken = async (session: SessionPayload & JWTPayload): Promise<string> => {
   const { iat: _iat, exp: _exp, nbf: _nbf, jti: _jti, ...payload } = session
   return new SignJWT(payload as unknown as Record<string, unknown>)
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: JWT_ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime('12h')
+    .setExpirationTime(SESSION_EXPIRATION)
     .sign(getSecret())
 }
 
@@ -69,13 +66,7 @@ const proxy = async (request: NextRequest) => {
   if (session && shouldRefresh(session)) {
     log.debug({ userId: session.userId }, 'refreshing session token')
     const newToken = await refreshToken(session)
-    response.cookies.set(COOKIE_NAME, newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_MAX_AGE,
-      path: '/',
-    })
+    response.cookies.set(COOKIE_NAME, newToken, COOKIE_OPTIONS)
   }
 
   return response

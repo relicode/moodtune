@@ -24,5 +24,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ venu
     branches = results.filter((b) => b !== null)
   }
 
-  return NextResponse.json({ branches })
+  return NextResponse.json({ branches }, {
+    headers: { 'Cache-Control': 'no-store' }, // branch structure can change anytime
+  })
 }

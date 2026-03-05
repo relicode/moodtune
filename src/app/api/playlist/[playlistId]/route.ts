@@ -65,5 +65,7 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ pla
         ui: branch.ui,
       }
 
-  return NextResponse.json(response)
+  return NextResponse.json(response, {
+    headers: { 'Cache-Control': 'no-store' }, // playlist content can change anytime
+  })
 }

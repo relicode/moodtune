@@ -13,7 +13,7 @@ name: moodtune
 services:
   moodtune-app:
     image: node:24-slim
-    # user: '1001:100'
+    user: '1001:100'
     restart: unless-stopped
     working_dir: /app
     command: ['node', 'server.js']
@@ -31,7 +31,8 @@ services:
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
       REDIS_URL: redis://redis:6379
     ports:
-      - '${PORT:-3333}:3000'
+      - '127.0.0.1:${PORT:-3333}:3000'
+      # - '${PORT:-3333}:3000' # for development
     volumes:
       - ./.next/standalone:/app:ro
       - ${DATA_DIR:?DATA_DIR must be set in .env}/bins:/data/bins:ro
@@ -73,12 +74,13 @@ services:
     restart: unless-stopped
     ports:
       - '127.0.0.1:${MINIO_PORT:-9000}:9000'
+      - '127.0.0.1:9001:9001'   # MinIO Console
     volumes:
       - ${DATA_DIR:?DATA_DIR must be set in .env}/minio:/data
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    command: server /data
+    command: server /data --console-address ":9001"
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
@@ -89,3 +91,4 @@ services:
 networks:
   moodtune:
     name: moodtune
+    external: true

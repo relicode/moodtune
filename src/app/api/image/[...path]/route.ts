@@ -31,7 +31,7 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ pat
       headers: {
         'Content-Type': contentType,
         'Content-Length': String(stat.size),
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'public, max-age=31536000, immutable', // UUID filenames are unique per upload — safe to cache indefinitely
         'Content-Disposition': 'inline',
       },
     })
