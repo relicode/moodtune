@@ -13,13 +13,11 @@ const VenuePage = async ({ params }: { params: Promise<{ venueId: string }> }) =
   const branchesRaw = await Promise.all(branchIds.map(getBranch))
   const branches = branchesRaw.filter((b) => b !== null)
 
-  const branchItems = await Promise.all(
-    branches.map(async (branch) => ({
-      id: branch.id,
-      name: branch.name,
-      imageUrl: branch.imagePath ? await getImageUrl(branch.imagePath) : null,
-    }))
-  )
+  const branchItems = branches.map((branch) => ({
+    id: branch.id,
+    name: branch.name,
+    imageUrl: branch.imagePath ? getImageUrl(branch.imagePath) : null,
+  }))
 
   return (
     <>

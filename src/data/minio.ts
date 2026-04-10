@@ -50,8 +50,18 @@ export const getObjectMetadata = async (bucket: string, objectName: string) => {
   return stat.metaData
 }
 
-export const getPresignedUrl = async (bucket: string, objectName: string, expiry = 3600) =>
-  minioClient.presignedGetObject(bucket, objectName, expiry)
+export const uploadFileFromPath = async (
+  bucket: string,
+  objectName: string,
+  filePath: string,
+  contentType: string,
+  metadata: Record<string, string> = {}
+) => {
+  await minioClient.fPutObject(bucket, objectName, filePath, {
+    'Content-Type': contentType,
+    ...metadata,
+  })
+}
 
 export const removeFile = async (bucket: string, objectName: string) => {
   await minioClient.removeObject(bucket, objectName)

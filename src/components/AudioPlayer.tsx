@@ -19,14 +19,17 @@ import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
 import Slider from '@mui/material/Slider'
-import Stack, { StackProps } from '@mui/material/Stack'
+import Stack from '@mui/material/Stack'
+import type { StackProps } from '@mui/material/Stack'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import shuffle from 'lodash-es/shuffle'
 import { useConfirm } from 'material-ui-confirm'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
-import { formatDuration, formatTime } from '$/lib/utils'
+import { track as trackEvent } from '$/lib/analytics'
+import { formatDuration } from '$/lib/utils'
 import { PlaylistUiOption } from '$/types'
 import type { Playlist, PlaylistTrack } from '$/types'
 
@@ -37,7 +40,7 @@ type AudioPlayerProps<A extends boolean> = {
 
 type AnyTrack = PlaylistTrack<boolean>
 
-const isDetailedTrack = (track: AnyTrack): track is PlaylistTrack<true> => 'name' in track
+const isDetailedTrack = (t: AnyTrack): t is PlaylistTrack<true> => 'name' in t
 
 const generateTracklist = (
   playlist: Playlist<boolean>,
@@ -90,8 +93,19 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const totalDuration = tracks.reduce((acc, cur) => acc + cur.duration, 0)
 
   const audioRef = useRef<HTMLAudioElement>(null)
+  const preloadRef = useRef<HTMLAudioElement>(null)
+  const lastReportedTrackRef = useRef<string | null>(null)
   const confirm = useConfirm()
   const { showSnackbar } = useSnackbar()
+
+  const trackData = (t: AnyTrack, extra?: Record<string, unknown>) => ({
+    playlistId: playlist.id,
+    playlistName: playlist.name,
+    trackId: t.id,
+    trackDuration: t.duration,
+    ...(isDetailedTrack(t) ? { trackName: t.name, artist: t.artist } : {}),
+    ...extra,
+  })
 
   const showTrackList = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)
   const showShuffleControl = adminView || playlist.ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)
@@ -160,6 +174,9 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
     if (!audio) return
 
     const onEnded = () => {
+      if (currentTrack) {
+        trackEvent('track-complete', trackData(currentTrack, { listenedDuration: audio.duration || 0 }))
+      }
       if (currentIndex < tracks.length - 1) {
         setCurrentIndex(currentIndex + 1)
       } else {
@@ -181,11 +198,144 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
     audio.muted = muted
   }, [volume, muted])
 
+  // Send track-play analytics when a new track starts playing
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) return
+    if (currentTrack.id === lastReportedTrackRef.current) return
+    lastReportedTrackRef.current = currentTrack.id
+    trackEvent('track-play', trackData(currentTrack))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trackData is stable via React Compiler
+  }, [currentIndex, isPlaying, tracks])
+
+  // Media Session: metadata
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return
+    const detailed = isDetailedTrack(currentTrack)
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: detailed ? currentTrack.name : `Track ${currentIndex + 1}`,
+      artist: (detailed && currentTrack.artist) || playlist.name,
+      album: playlist.name,
+      artwork: [
+        { src: '/icons/192', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/512', sizes: '512x512', type: 'image/png' },
+      ],
+    })
+  }, [currentTrack, currentIndex, playlist.name])
+
+  // Media Session: action handlers
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+      [
+        'play',
+        () => {
+          audio.play().catch(() => {})
+          setIsPlaying(true)
+        },
+      ],
+      [
+        'pause',
+        () => {
+          audio.pause()
+          setIsPlaying(false)
+        },
+      ],
+      [
+        'nexttrack',
+        () => {
+          if (currentIndex < tracks.length - 1) {
+            loadAndPlay(currentIndex + 1)
+          } else {
+            regenerate()
+          }
+        },
+      ],
+      ['previoustrack', currentIndex > 0 ? () => loadAndPlay(currentIndex - 1) : null],
+      [
+        'stop',
+        () => {
+          audio.pause()
+          audio.currentTime = 0
+          setIsPlaying(false)
+        },
+      ],
+      [
+        'seekto',
+        (details: MediaSessionActionDetails) => {
+          if (details.seekTime != null && Number.isFinite(audio.duration)) {
+            audio.currentTime = Math.min(details.seekTime, audio.duration)
+          }
+        },
+      ],
+    ]
+
+    for (const [action, handler] of handlers) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler)
+      } catch {
+        // Action not supported
+      }
+    }
+
+    return () => {
+      for (const [action] of handlers) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null)
+        } catch {
+          // Action not supported
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAndPlay and regenerate are stable via React Compiler
+  }, [currentIndex, tracks])
+
+  // Media Session: playback state and position
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+
+    const audio = audioRef.current
+    if (audio && 'setPositionState' in navigator.mediaSession && audio.duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime,
+        })
+      } catch {
+        // Invalid state (position > duration during seek, etc.)
+      }
+    }
+  }, [isPlaying, currentIndex, duration])
+
+  // Preload next track
+  useEffect(() => {
+    const preload = preloadRef.current
+    if (!preload) return
+    const nextTrack = tracks[currentIndex + 1]
+    if (nextTrack) {
+      preload.src = nextTrack.url
+    } else {
+      preload.removeAttribute('src')
+      preload.load()
+    }
+    return () => {
+      preload.removeAttribute('src')
+      preload.load()
+    }
+  }, [currentIndex, tracks])
+
   const VolumeIcon = muted || volume === 0 ? VolumeOffIcon : volume <= 50 ? VolumeDownIcon : VolumeUpIcon
 
   const loadAndPlay = (index: number) => {
     const audio = audioRef.current
     if (!tracks[index] || !audio) return
+    if (isPlaying && currentTrack && tracks[index].id !== currentTrack.id) {
+      trackEvent('track-skip', trackData(currentTrack, { listenedDuration: audio.currentTime }))
+    }
     setCurrentIndex(index)
     setIsPlaying(true)
     if (index === currentIndex) {
@@ -205,28 +355,41 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <Container maxWidth="md" disableGutters>
+    <Container
+      maxWidth="md"
+      disableGutters
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        ...(!showTrackList && { justifyContent: 'center' }),
+      }}
+    >
       <audio ref={audioRef} src={audioSrc || undefined} hidden />
+      <audio ref={preloadRef} preload="auto" hidden />
 
       {isAdmin && (
-        <IconButton
-          size="large"
-          onClick={() => setAdminView((prev) => !prev)}
-          sx={{ position: 'fixed', top: 24, right: 24 }}
-          color={adminView ? 'warning' : 'default'}
-        >
-          <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
-        </IconButton>
+        <Tooltip title={adminView ? 'Showing admin view' : 'Showing user view'}>
+          <IconButton
+            size="large"
+            onClick={() => setAdminView((prev) => !prev)}
+            sx={{ position: 'fixed', top: 24, right: 24 }}
+            color={adminView ? 'warning' : 'default'}
+          >
+            <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
+          </IconButton>
+        </Tooltip>
       )}
 
-      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2 }}>
+      <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
         <Box sx={{ textAlign: 'center' }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
             <Typography variant="h4">{playlist.name}</Typography>
             {showRefresh && (
               <IconButton
                 onClick={async () => {
-                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  const { confirmed } = await confirm({ description: 'Regenerate list?' })
                   if (confirmed) regenerate()
                 }}
                 sx={{ position: 'absolute', left: '120%' }}
@@ -237,7 +400,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
           </Box>
         </Box>
         <Stack spacing={1} alignItems="center">
-          {formatDuration(totalDuration)}
+          {formatDuration(totalDuration, 'long')}
 
           {showTrackList && currentTrack && isDetailedTrack(currentTrack) && (
             <Typography fontWeight="bold">
@@ -245,7 +408,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
             </Typography>
           )}
           <Typography variant="caption" color="text.secondary">
-            {formatTime(currentTime)} / {formatTime(duration)}
+            {formatDuration(currentTime)} / {formatDuration(duration)}
           </Typography>
         </Stack>
         <Box
@@ -304,6 +467,8 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                 if (isPlaying) {
                   audio.pause()
                   setIsPlaying(false)
+                  if (currentTrack)
+                    trackEvent('track-pause', trackData(currentTrack, { listenedDuration: audio.currentTime }))
                 } else {
                   await audio.play()
                   setIsPlaying(true)
@@ -318,7 +483,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                 if (currentIndex < tracks.length - 1) {
                   loadAndPlay(currentIndex + 1)
                 } else {
-                  const { confirmed } = await confirm({ description: 'Generate a new playlist?' })
+                  const { confirmed } = await confirm({ description: 'Regenerate list?' })
                   if (confirmed) regenerate()
                 }
               }}
@@ -330,7 +495,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
             <GridCell>
               {showShuffleControl && (
                 <IconButton
-                  color={shouldShuffle ? 'success' : 'default'}
+                  color={shouldShuffle ? 'primary' : 'default'}
                   onClick={() => {
                     setShouldShuffle((prev) => !prev)
                     setShowRefresh(true)
@@ -348,8 +513,8 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                     max={100}
                     valueLabelDisplay="auto"
                     valueLabelFormat={(v) => `${v}%`}
-                    onChange={(_e, v) => {
-                      setRandom(v as number)
+                    onChange={(_, value: number) => {
+                      setRandom(value)
                       setShowRefresh(true)
                     }}
                     sx={{ ml: 1, mr: 2 }}
@@ -365,7 +530,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
       </Stack>
 
       {showTrackList && (
-        <List>
+        <List sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
           {tracks.map((track, index) => (
             <ListItemButton key={track.id + index} selected={index === currentIndex} onClick={() => loadAndPlay(index)}>
               <ListItemText
@@ -373,7 +538,7 @@ const AudioPlayer = ({ playlist, isAdmin }: AudioPlayerProps<boolean>) => {
                 secondary={isDetailedTrack(track) ? track.artist || undefined : undefined}
               />
               <Typography variant="caption" color="text.secondary">
-                {formatTime(track.duration)}
+                {formatDuration(track.duration)}
               </Typography>
             </ListItemButton>
           ))}

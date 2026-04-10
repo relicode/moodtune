@@ -1,6 +1,7 @@
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import type { Metadata } from 'next'
 
 import { getImageUrl } from '$/actions/media'
 import AudioPlayer from '$/components/AudioPlayer'
@@ -12,6 +13,17 @@ import { getVenue } from '$/data/venues'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, PlaylistUiOption, UserRole } from '$/types'
 import type { Playlist, PlaylistTrack, Track } from '$/types'
+
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ venueId: string; branchId: string }>
+}): Promise<Metadata> => {
+  const { venueId, branchId } = await params
+  const [branch, venue] = await Promise.all([getBranch(branchId), getVenue(venueId)])
+  const title = [branch?.name, venue?.name].filter(Boolean).join(' | ') || 'Moodtune'
+  return { title, description: 'Curated playlists by anssi.siren.codes' }
+}
 
 const MAX_ANCESTOR_DEPTH = 10
 
@@ -72,13 +84,11 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
 
   if (branch.type === BranchType.FOLDER) {
     const children = await getChildBranches(branchId)
-    const branchItems = await Promise.all(
-      children.map(async (child) => ({
-        id: child.id,
-        name: child.name,
-        imageUrl: child.imagePath ? await getImageUrl(child.imagePath) : null,
-      }))
-    )
+    const branchItems = children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      imageUrl: child.imagePath ? getImageUrl(child.imagePath) : null,
+    }))
     return (
       <Stack spacing={2}>
         {header}
@@ -115,7 +125,7 @@ const BranchPage = async ({ params }: { params: Promise<{ venueId: string; branc
       }
 
   return (
-    <Stack spacing={2} sx={!isAdmin ? { flex: 1, justifyContent: 'center' } : undefined}>
+    <Stack spacing={2} sx={{ flex: 1, minHeight: 0 }}>
       <AudioPlayer playlist={playlist} isAdmin={isAdmin} />
     </Stack>
   )

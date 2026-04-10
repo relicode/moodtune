@@ -1,19 +1,30 @@
-# Copy to .env.local
+# Copy to .env
+# Docker Compose interpolates all vars from this file.
+# Values shown are dev defaults — Compose overrides networking for containers.
 
-# NPM_CONFIG_REGISTRY=https://verdaccio.moisad.info/
+# moodtune-app
+PORT=3333 # Host port the app is exposed on
+DATA_DIR=/tmp/data # Base data directory (logs, uploads, bins, redis, minio)
+JWT_SECRET=change-me-to-a-random-secret # JWT signing key (required, change in production)
+LOG_LEVEL=debug # Pino log level (trace/debug/info/warn/error/fatal)
+# FFMPEG_MAX_BUFFER=10485760 # Max stdout/stderr buffer for ffmpeg/ffprobe in bytes (default: 10 MB)
+NEXT_PUBLIC_UMAMI_URL= # Umami analytics script URL (leave empty to disable)
+NEXT_PUBLIC_UMAMI_WEBSITE_ID= # Umami website ID (leave empty to disable)
 
-REDIS_URL=redis://localhost:6379
+# redis
+REDIS_PORT=6379 # Host port Redis is exposed on
+REDIS_URL=redis://localhost:6379 # Redis connection URL (Compose overrides to redis://redis:6379)
 
-MINIO_ENDPOINT=localhost
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_USE_SSL=false
-MINIO_BUCKET=moodtune
+# minio
+MINIO_ACCESS_KEY=minioadmin # MinIO access key (required)
+MINIO_BUCKET=moodtune # Bucket name prefix (images bucket is {MINIO_BUCKET}-images)
+MINIO_ENDPOINT=localhost # MinIO hostname (Compose overrides to 'minio' for the app)
+MINIO_PORT=9000 # MinIO API port
+MINIO_SECRET_KEY=minioadmin # MinIO secret key (required)
+MINIO_USE_SSL=false # MinIO TLS enabled
 
-JWT_SECRET=change-me-to-a-random-secret
-
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin
+# --- seeding ---
+ADMIN_USERNAME=admin # Admin username for db:seed script
+ADMIN_PASSWORD=admin # Admin password for db:seed script
 
 # vi: filetype=sh sw=2 ts=2 et

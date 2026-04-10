@@ -1,13 +1,21 @@
 #!/usr/bin/env -S tsx
+import { loadEnvConfig } from '@next/env'
 import { hash } from 'bcryptjs'
 import Redis from 'ioredis'
 import * as Minio from 'minio'
 
+loadEnvConfig(process.cwd())
+
 const seed = async () => {
   const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
 
-  const adminUsername = process.env.ADMIN_USERNAME || 'admin'
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin'
+  const adminUsername = process.env.ADMIN_USERNAME
+  const adminPassword = process.env.ADMIN_PASSWORD
+
+  if (!adminUsername || !adminPassword) {
+    console.error('ADMIN_USERNAME and ADMIN_PASSWORD must be set in .env')
+    process.exit(1)
+  }
 
   const existingId = await redis.get(`user:byUsername:${adminUsername}`)
   if (existingId) {

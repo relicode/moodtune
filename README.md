@@ -12,7 +12,7 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
 1. Start the backing services:
 
    ```sh
-   docker compose up -d
+   docker compose up redis minio
    ```
 
 2. Install dependencies:
@@ -24,10 +24,10 @@ A venue music management app built with Next.js 16, React 19, and MUI 7. Admins 
 3. Copy the environment template and adjust as needed:
 
    ```sh
-   cp env-template .env.local
+   cp env-template .env
    ```
 
-4. Seed the database (creates admin user and MinIO buckets):
+4. Seed the database (creates admin user and MinIO buckets). `ADMIN_USERNAME` and `ADMIN_PASSWORD` must be set in `.env`:
 
    ```sh
    npm run db:seed
@@ -67,16 +67,22 @@ src/
   app/                  App Router pages and layouts
     admin/              Admin dashboard (page, layout, and CRUD components)
     api/                REST API routes
-      admin/            Admin CRUD (branches, tracks, upload-track, venue-users)
+      admin/            Admin CRUD (branches, tracks, track, image, venue-users)
+      analytics/        Client analytics relay (auth required, logs to pino)
       audio/            Audio streaming with range-request support
+      image/            Image proxy (streams from MinIO, auth required)
       playlist/         Playlist tracks with role-based filtering
+    icon.tsx            Programmatic favicon (32px, via ImageResponse)
+    apple-icon.tsx      Programmatic apple-touch-icon (180px)
+    icons/[size]/       Dynamic PNG icon route for manifest (192px, 512px)
+    manifest.ts         Web app manifest (PWA metadata)
     venue/              Venue user views
       [venueId]/        Venue root (branch grid)
         [branchId]/     Folder or playlist view
   actions/              Server Actions (admin, auth, branches, media)
-  components/           Shared components (AudioPlayer, BranchGrid, LoginForm, VenueBottomNav)
+  components/           Shared components (AudioPlayer, BranchGrid, InstallButton, LoginForm, VenueBottomNav)
   data/                 Data access layer (dal.ts + entity modules for Redis/MinIO)
-  lib/                  Utilities (session, ffprobe, ffmpeg, filename)
+  lib/                  Utilities (session, ffprobe, ffmpeg, filename, logger, analytics, request, icon)
   proxy.ts              Middleware (JWT verification, route guards, sliding token refresh)
   types/                TypeScript type definitions
   theme.ts              MUI theme config
@@ -84,21 +90,43 @@ src/
 
 ## Architecture
 
-- **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction.
-- **Branches** form a recursive tree: folders contain child branches, playlists contain tracks.
-- **Audio uploads** are probed with `ffprobe-static` for metadata and compressed to 192kbps AAC/M4A via `ffmpeg-static` when a meaningful size reduction (>20%) is expected. Max upload size is 100 MB.
-- **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes.
+- **Data** is stored in Redis (branches, venues, users, sessions) and MinIO (audio files, images). The data layer (`src/data/dal.ts`) provides typed Redis helpers; entity modules build on this abstraction. All persistent data lives outside the project at `$DATA_DIR` (required, set in `.env`).
+- **Branches** form a recursive tree: folders contain child branches, playlists contain tracks. Both folder name/image and playlist settings are editable after creation via admin dialogs.
+- **Audio uploads** are streamed to disk and probed with ffprobe for metadata, then compressed to 192kbps AAC/M4A via ffmpeg when a meaningful size reduction (>20%) is expected. Static binaries for amd64 and arm64 are downloaded to `$DATA_DIR/bins/{arch}/` by the `postinstall` script. The app auto-detects the architecture via `process.arch` and checks `/data/bins/{arch}/` (container) before falling back to system PATH (dev). Max upload size is 2048 MB. Temp directory is `/data/uploads` in production and `/tmp` in dev (determined by `NODE_ENV`).
+- **Auth** uses JWT sessions (12-hour lifetime with sliding refresh) stored in cookies. A single login page at `/` handles both admin and venue-user roles. `src/proxy.ts` guards `/admin` (admin role) and `/venue/[venueId]` (venue access) routes. Login is rate-limited to 5 attempts per IP per 60 seconds.
+- **AudioPlayer** fills available viewport height. Controls are vertically centered when the track list is hidden; when visible, the track list pushes the controls up and scrolls independently via `flex: 1` + `overflow: auto`.
 - The app uses `output: 'standalone'` for containerized deployment.
+- **Logging** uses pino for structured JSON logging. In production, logs write to `/data/log/app.log`; in dev, logs go to stdout only via `pino-pretty`. Set `LOG_LEVEL` env var to control verbosity (defaults to `debug` in dev, `info` in production). Covers auth, route guards, admin actions, uploads, streaming, and analytics.
+- **Analytics** (optional): set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in `.env` to enable Umami page-view tracking. Client analytics (`src/lib/analytics.ts`) sends events to both Umami and the server-side `/api/analytics` endpoint for structured logging. Events include playback (`track-play`, `track-pause`, `track-skip`, `track-complete`), auth (`auth-login-failure`, `auth-logout`), PWA (`pwa-install-prompt`, `pwa-installed`), and admin CRUD actions. The server endpoint validates events against an allowlist and sanitizes all values before logging.
+- **PWA** — The app is installable as a Progressive Web App. A web app manifest (`src/app/manifest.ts`) provides identity, theme colors, and icon references. Icons are generated programmatically using `next/og` `ImageResponse` (white MusicNote on the primary theme color) at multiple sizes: 32px favicon, 180px apple-touch-icon, and 192/512px for the manifest via a dynamic route at `/icons/[size]`. A `ServiceWorkerProvider` captures the browser's install prompt and a placeholder service worker (`public/sw.js`) is registered on mount. The `InstallButton` component shows a responsive install icon on the login page when the app is installable.
 
-## Docker Compose
+## Docker
+
+The app is built on the host and volume-mounted into a stock `node:24-slim` container (no Dockerfile). `compose.yaml` defines all services with production settings (healthchecks, resource limits, moodtune network). All data volumes are mapped from `$DATA_DIR` (required).
 
 ```sh
-docker compose up -d          # Redis + MinIO
-docker compose --profile app up  # Also build and run the app container
+docker compose up redis minio       # Dev: just the backing services
+./deploy.sh                         # Production: build on host, restart app container
+./prod.sh up -d                     # Full stack (compose validates required env vars)
 ```
 
 - **Redis** on port 6379 (persistent with AOF)
-- **MinIO** on port 9000 (API) / 9001 (console)
+- **MinIO** on port 9000 (API) and port 9001 (web console, SSH tunnel required — see below)
+- The app service is named `moodtune-app`, bound to `127.0.0.1:3333`
+
+To browse MinIO via the web console, use an SSH local port forward:
+
+```sh
+ssh -L 9001:127.0.0.1:9001 your-server
+```
+
+Then open `http://localhost:9001` and log in with your MinIO credentials.
+
+## Production Deployment
+
+`prod.sh` runs the root `~/services/compose.yaml` which includes moodtune via Docker Compose `include` alongside Caddy and Umami. Required env vars (`JWT_SECRET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`) are validated at startup via `${VAR:?}` interpolation in `compose.yaml`. Caddy reverse proxies to `moodtune-app:3000` on a shared `moodtune` network with security headers (HSTS, CSP, X-Frame-Options, Referrer-Policy), exploit path blocking, and bot UA blocking. A reference copy of the moodtune Caddy vhost is kept at `./Caddyfile` (the canonical version is `~/services/Caddyfile`).
+
+**Seed in production** — Redis is bound to `127.0.0.1:6379` (no password), so `npm run db:seed` works from the host.
 
 ## License
 

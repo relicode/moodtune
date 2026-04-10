@@ -1,12 +1,13 @@
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { COOKIE_NAME, COOKIE_OPTIONS, JWT_ALGORITHM, SESSION_EXPIRATION, getSecret } from '$/lib/jwt'
+import { createLogger } from '$/lib/logger'
+import { getClientIp } from '$/lib/request'
 import { UserRole } from '$/types'
 import type { SessionPayload } from '$/types'
 
-const COOKIE_NAME = 'moodtune-session'
-const SESSION_MAX_AGE = 60 * 60 * 12 // 12 hours
-const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'change-me')
+const log = createLogger('proxy')
 
 const verifyToken = async (token: string): Promise<(SessionPayload & JWTPayload) | null> => {
   try {
@@ -20,9 +21,9 @@ const verifyToken = async (token: string): Promise<(SessionPayload & JWTPayload)
 const refreshToken = async (session: SessionPayload & JWTPayload): Promise<string> => {
   const { iat: _iat, exp: _exp, nbf: _nbf, jti: _jti, ...payload } = session
   return new SignJWT(payload as unknown as Record<string, unknown>)
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: JWT_ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime('12h')
+    .setExpirationTime(SESSION_EXPIRATION)
     .sign(getSecret())
 }
 
@@ -35,23 +36,27 @@ const shouldRefresh = (session: SessionPayload & JWTPayload): boolean => {
 
 const proxy = async (request: NextRequest) => {
   const { pathname } = request.nextUrl
+  const ip = getClientIp(request.headers)
   const token = request.cookies.get(COOKIE_NAME)?.value
 
   const session = token ? await verifyToken(token) : null
 
   if (pathname.startsWith('/admin')) {
     if (!session || session.role !== UserRole.ADMIN) {
+      log.warn({ pathname, ip }, 'unauthorized access to admin route')
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
   if (pathname.startsWith('/venue/')) {
     if (!session) {
+      log.warn({ pathname, ip }, 'unauthenticated access to venue route')
       return NextResponse.redirect(new URL('/', request.url))
     }
 
     const venueId = pathname.split('/')[2]
     if (session.role !== UserRole.ADMIN && !session.venueIds?.includes(venueId)) {
+      log.warn({ pathname, userId: session.userId, ip }, 'forbidden access to venue route')
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
@@ -59,14 +64,9 @@ const proxy = async (request: NextRequest) => {
   const response = NextResponse.next()
 
   if (session && shouldRefresh(session)) {
+    log.debug({ userId: session.userId }, 'refreshing session token')
     const newToken = await refreshToken(session)
-    response.cookies.set(COOKIE_NAME, newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_MAX_AGE,
-      path: '/',
-    })
+    response.cookies.set(COOKIE_NAME, newToken, COOKIE_OPTIONS)
   }
 
   return response

@@ -3,16 +3,17 @@ import 'server-only'
 import { jwtVerify, SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 
+import { COOKIE_NAME, COOKIE_OPTIONS, JWT_ALGORITHM, SESSION_EXPIRATION, getSecret } from '$/lib/jwt'
+import { createLogger } from '$/lib/logger'
 import type { SessionPayload } from '$/types'
 
-const COOKIE_NAME = 'moodtune-session'
-const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'change-me')
+const log = createLogger('session')
 
 export const createSession = async (payload: SessionPayload): Promise<string> =>
   new SignJWT(payload as unknown as Record<string, unknown>)
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: JWT_ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime('12h')
+    .setExpirationTime(SESSION_EXPIRATION)
     .sign(getSecret())
 
 export const verifySession = async (token: string): Promise<SessionPayload | null> => {
@@ -20,19 +21,14 @@ export const verifySession = async (token: string): Promise<SessionPayload | nul
     const { payload } = await jwtVerify(token, getSecret())
     return payload as unknown as SessionPayload
   } catch {
+    log.warn('JWT verification failed')
     return null
   }
 }
 
 export const setSessionCookie = async (token: string) => {
   const cookieStore = await cookies()
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 12,
-    path: '/',
-  })
+  cookieStore.set(COOKIE_NAME, token, COOKIE_OPTIONS)
 }
 
 export const getSessionFromCookie = async (): Promise<SessionPayload | null> => {

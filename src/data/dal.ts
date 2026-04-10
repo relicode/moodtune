@@ -1,6 +1,10 @@
 import 'server-only'
 
+import { createLogger } from '$/lib/logger'
+
 import redis from './redis'
+
+const log = createLogger('dal')
 
 // --- Schema types ---
 
@@ -60,6 +64,7 @@ export const hashCreate = async <T extends { id: string; createdAt: string }>(
   const id = crypto.randomUUID()
   const entity = { id, ...fields, createdAt: new Date().toISOString() }
   await redis.hset(`${prefix}:${id}`, serialize(entity, schema))
+  log.debug({ prefix, id }, 'entity created')
   return entity as T
 }
 
@@ -71,6 +76,7 @@ export const hashGet = async <T>(key: string, schema: Schema): Promise<T | null>
 
 export const hashSet = async (key: string, fields: Record<string, unknown>, schema: Schema) => {
   await redis.hset(key, serialize(fields, schema))
+  log.debug({ key }, 'entity updated')
 }
 
 // --- List (ordered relationships) ---
@@ -84,6 +90,14 @@ export const listRemove = async (key: string, value: string) => {
 }
 
 export const listAll = async (key: string): Promise<string[]> => redis.lrange(key, 0, -1)
+
+export const listReplace = async (key: string, values: string[]) => {
+  const multi = redis.multi()
+  multi.del(key)
+  if (values.length > 0) multi.rpush(key, ...values)
+  await multi.exec()
+  log.debug({ key, count: values.length }, 'list replaced')
+}
 
 export const listGetAll = async <T>(key: string, getter: (id: string) => Promise<T | null>): Promise<T[]> => {
   const ids = await listAll(key)

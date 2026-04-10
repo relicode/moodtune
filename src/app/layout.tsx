@@ -1,9 +1,13 @@
 import GlobalStyles from '@mui/material/GlobalStyles'
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 
 import ThemeRegistry from '$/app/ThemeRegistry'
+
+const umamiUrl = process.env.NEXT_PUBLIC_UMAMI_URL
+const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
 
 const inter = Inter({
   variable: '--font-inter',
@@ -13,6 +17,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Moodtune',
   description: 'Moodtune - Ambiance for your venue',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  userScalable: true,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#00796B' },
+    { media: '(prefers-color-scheme: dark)', color: '#4DB6AC' },
+  ],
 }
 
 const RootLayout = ({
@@ -29,6 +43,9 @@ const RootLayout = ({
         />
         {children}
       </ThemeRegistry>
+      {umamiUrl && umamiWebsiteId && (
+        <Script src={umamiUrl} data-website-id={umamiWebsiteId} strategy="afterInteractive" />
+      )}
     </body>
   </html>
 )

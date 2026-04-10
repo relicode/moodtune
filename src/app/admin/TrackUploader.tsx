@@ -18,6 +18,7 @@ import Typography from '@mui/material/Typography'
 import { useRef, useState } from 'react'
 
 import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
 import { parseFilename } from '$/lib/filename'
 
 type TrackUploaderProps = {
@@ -90,7 +91,7 @@ const TrackUploader = ({ branchId, onUploaded, pool = 'main' }: TrackUploaderPro
       if (pool === 'random') formData.set('pool', 'random')
 
       try {
-        const res = await fetch('/api/admin/upload-track', { method: 'POST', body: formData })
+        const res = await fetch('/api/admin/track', { method: 'POST', body: formData })
         if (!res.ok) {
           const errorMsg = res.headers.get('content-type')?.includes('application/json')
             ? ((await res.json()) as { error?: string }).error || 'Upload failed'
@@ -117,7 +118,10 @@ const TrackUploader = ({ branchId, onUploaded, pool = 'main' }: TrackUploaderPro
 
     setUploading(false)
 
-    if (succeeded > 0) onUploaded()
+    if (succeeded > 0) {
+      track('admin-track-upload', { branchId, count: succeeded })
+      onUploaded()
+    }
 
     const parts: string[] = []
     if (succeeded > 0) parts.push(`${succeeded} uploaded`)

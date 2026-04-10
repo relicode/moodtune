@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server'
 
 import { getBranch } from '$/data/branches'
 import { getPlaylistTracks, getRandomTracks } from '$/data/tracks'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, PlaylistUiOption, UserRole } from '$/types'
 import type { Playlist, PlaylistTrack, Track } from '$/types'
+
+const log = createLogger('playlist')
 
 const mapTrack = (playlistId: string, track: Track): PlaylistTrack => ({
   id: track.id,
@@ -23,6 +26,7 @@ const stripTrack = (track: PlaylistTrack): PlaylistTrack<false> => ({
 export const GET = async (_request: Request, { params }: { params: Promise<{ playlistId: string }> }) => {
   const session = await getSessionFromCookie()
   if (!session) {
+    log.warn('unauthorized playlist request')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -33,6 +37,7 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ pla
   }
 
   if (session.role === UserRole.USER && !session.venueIds.includes(branch.venueId)) {
+    log.warn({ playlistId, userId: session.userId, username: session.username }, 'forbidden playlist access')
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -60,5 +65,7 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ pla
         ui: branch.ui,
       }
 
-  return NextResponse.json(response)
+  return NextResponse.json(response, {
+    headers: { 'Cache-Control': 'no-store' }, // playlist content can change anytime
+  })
 }

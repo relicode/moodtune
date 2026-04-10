@@ -1,23 +1,13 @@
-import { Readable } from 'stream'
-
 import { getBranch } from '$/data/branches'
 import { listAll } from '$/data/dal'
 import minioClient, { AUDIO_BUCKET } from '$/data/minio'
 import { getTrack } from '$/data/tracks'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
+import { toReadableStream } from '$/lib/stream'
 import { UserRole } from '$/types'
 
-const toReadableStream = (readable: Readable): ReadableStream<Uint8Array> =>
-  new ReadableStream({
-    start(controller) {
-      readable.on('data', (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
-      readable.on('end', () => controller.close())
-      readable.on('error', (err) => controller.error(err))
-    },
-    cancel() {
-      readable.destroy()
-    },
-  })
+const log = createLogger('audio-stream')
 
 export const GET = async (request: Request, { params }: { params: Promise<{ branchId: string; trackId: string }> }) => {
   const session = await getSessionFromCookie()
@@ -33,6 +23,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
   }
 
   if (session.role === UserRole.USER && !session.venueIds.includes(branch.venueId)) {
+    log.warn({ branchId, userId: session.userId, username: session.username }, 'forbidden audio stream access')
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -63,7 +54,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
         'Content-Type': contentType,
         'Content-Length': String(fileSize),
         'Accept-Ranges': 'bytes',
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'public, max-age=31536000, immutable', // UUID filenames are unique per upload — safe to cache indefinitely
         'Content-Disposition': 'inline',
       },
     })
@@ -71,6 +62,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
 
   const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
   if (!match) {
+    log.warn({ branchId, trackId, rangeHeader }, 'invalid range header')
     return new Response('Invalid range', {
       status: 416,
       headers: { 'Content-Range': `bytes */${fileSize}` },
@@ -97,7 +89,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Content-Length': String(length),
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'public, max-age=31536000, immutable', // UUID filenames are unique per upload — safe to cache indefinitely
       'Content-Disposition': 'inline',
     },
   })

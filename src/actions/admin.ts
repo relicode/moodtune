@@ -2,9 +2,23 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { addChildBranch, createBranch, deleteBranchRecursive, removeChildBranch, updateBranch } from '$/data/branches'
-import { IMAGE_BUCKET, uploadFile } from '$/data/minio'
-import { deleteTrack, removeRandomTrackFromBranch, removeTrackFromBranch, updateTrack } from '$/data/tracks'
+import {
+  addChildBranch,
+  createBranch,
+  deleteBranchRecursive,
+  getBranch,
+  removeChildBranch,
+  updateBranch,
+} from '$/data/branches'
+import { IMAGE_BUCKET, removeFile } from '$/data/minio'
+import {
+  deleteTrack,
+  removeRandomTrackFromBranch,
+  removeTrackFromBranch,
+  reorderRandomTracks,
+  reorderTracks,
+  updateTrack,
+} from '$/data/tracks'
 import { createUser, deleteUser } from '$/data/users'
 import {
   addRootBranch,
@@ -15,16 +29,21 @@ import {
   removeUserFromVenue,
   updateVenue,
 } from '$/data/venues'
-import { sanitizeExtension } from '$/lib/filename'
+import { createLogger } from '$/lib/logger'
 import { getSessionFromCookie } from '$/lib/session'
 import { BranchType, UserRole } from '$/types'
 import type { ActionResult, PlaylistUiOption, SessionPayload } from '$/types'
+
+const log = createLogger('admin')
+
+const IMAGE_PATH_RE = /^image\/[0-9a-f-]+\.\w+$/
 
 type AdminCheck = { error: ActionResult } | { session: SessionPayload }
 
 const requireAdmin = async (): Promise<AdminCheck> => {
   const session = await getSessionFromCookie()
   if (!session || session.role !== UserRole.ADMIN) {
+    log.warn('requireAdmin rejected — unauthorized')
     return { error: { success: false, error: 'Unauthorized' } }
   }
   return { session }
@@ -39,6 +58,7 @@ export const createVenueAction = async (_prev: ActionResult, formData: FormData)
   if (!name) return { success: false, error: 'Name is required' }
 
   await createVenue(name, '')
+  log.info({ name }, 'venue created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -63,6 +83,7 @@ export const deleteVenueAction = async (venueId: string): Promise<ActionResult> 
   if ('error' in auth) return auth.error
 
   await deleteVenue(venueId)
+  log.info({ venueId }, 'venue deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -85,6 +106,7 @@ export const createVenueUserAction = async (_prev: ActionResult, formData: FormD
   }
 
   await addUserToVenue(venueId, user.id)
+  log.info({ venueId, username }, 'venue user created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -95,6 +117,7 @@ export const deleteVenueUserAction = async (venueId: string, userId: string): Pr
 
   await removeUserFromVenue(venueId, userId)
   await deleteUser(userId)
+  log.info({ venueId, userId }, 'venue user deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -107,18 +130,10 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
   const parentId = (formData.get('parentId') as string) || undefined
   const name = formData.get('name') as string
   const type = formData.get('type') as BranchType
-  const imageFile = formData.get('image') as File | null
+  const rawImagePath = (formData.get('imagePath') as string) || undefined
+  const imagePath = rawImagePath && IMAGE_PATH_RE.test(rawImagePath) ? rawImagePath : undefined
 
   if (!name || !type) return { success: false, error: 'Name and type are required' }
-
-  let imagePath: string | undefined
-  if (imageFile && imageFile.size > 0) {
-    const ext = sanitizeExtension(imageFile.name)
-    const objectName = `image/${crypto.randomUUID()}.${ext}`
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-    imagePath = objectName
-  }
 
   const branch = await createBranch(venueId, parentId, name, type, imagePath)
 
@@ -128,6 +143,7 @@ export const createBranchAction = async (_prev: ActionResult, formData: FormData
     await addRootBranch(venueId, branch.id)
   }
 
+  log.info({ venueId, branchId: branch.id, name, type }, 'branch created')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -147,6 +163,7 @@ export const deleteBranchAction = async (
   }
 
   await deleteBranchRecursive(branchId)
+  log.info({ venueId, branchId }, 'branch deleted')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -181,6 +198,7 @@ export const removeTrackAction = async (
     await removeTrackFromBranch(branchId, trackId)
   }
   await deleteTrack(trackId)
+  log.info({ branchId, trackId, pool }, 'track removed')
   revalidatePath('/admin')
   return { success: true }
 }
@@ -198,7 +216,7 @@ export const setBranchRandomAction = async (branchId: string, random: number): P
   return { success: true }
 }
 
-export const updatePlaylistSettingsAction = async (
+export const updateBranchSettingsAction = async (
   branchId: string,
   settings: Partial<{ name: string; ui: PlaylistUiOption[] }>
 ): Promise<ActionResult> => {
@@ -210,20 +228,44 @@ export const updatePlaylistSettingsAction = async (
   return { success: true }
 }
 
-export const updateBranchImageAction = async (branchId: string, formData: FormData): Promise<ActionResult> => {
+export const updateBranchImageAction = async (branchId: string, imagePath: string): Promise<ActionResult> => {
   const auth = await requireAdmin()
   if ('error' in auth) return auth.error
 
-  const imageFile = formData.get('image') as File | null
-  if (!imageFile || imageFile.size === 0) {
-    return { success: false, error: 'No image provided' }
+  if (!IMAGE_PATH_RE.test(imagePath)) {
+    return { success: false, error: 'Invalid image path' }
   }
 
-  const ext = sanitizeExtension(imageFile.name)
-  const objectName = `image/${crypto.randomUUID()}.${ext}`
-  const buffer = Buffer.from(await imageFile.arrayBuffer())
-  await uploadFile(IMAGE_BUCKET, objectName, buffer, imageFile.type)
-  await updateBranch(branchId, { imagePath: objectName })
+  const branch = await getBranch(branchId)
+  if (branch?.imagePath) {
+    await removeFile(IMAGE_BUCKET, branch.imagePath).catch(() => {})
+  }
+
+  await updateBranch(branchId, { imagePath })
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export const reorderTracksAction = async (
+  branchId: string,
+  trackIds: string[],
+  pool: 'main' | 'random' = 'main'
+): Promise<ActionResult> => {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
+  try {
+    if (pool === 'random') {
+      await reorderRandomTracks(branchId, trackIds)
+    } else {
+      await reorderTracks(branchId, trackIds)
+    }
+  } catch (err) {
+    log.warn({ branchId, pool, error: err instanceof Error ? err.message : 'unknown' }, 'reorder failed')
+    return { success: false, error: 'Failed to reorder tracks' }
+  }
+
+  log.info({ branchId, pool, count: trackIds.length }, 'tracks reordered')
   revalidatePath('/admin')
   return { success: true }
 }

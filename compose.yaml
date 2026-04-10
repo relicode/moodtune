@@ -1,34 +1,94 @@
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY:-https://verdaccio.moisad.info}
+name: moodtune
 
+# Moodtune services
+#
+# All services but moodtune-app are bound to 127.0.0.1 only.
+# Required env vars (JWT_SECRET, MINIO_ACCESS_KEY, MINIO_SECRET_KEY) are
+# validated at startup via ${VAR:?} — compose will fail with a clear error
+# if any are missing from .env.
+#
+# Production: ./prod.sh up -d
+# Dev infra:  docker compose up redis minio  (run app on host with npm run dev)
+
+services:
+  moodtune-app:
+    image: node:24-slim
+    user: '1001:100'
     restart: unless-stopped
-    profiles: [app]
+    working_dir: /app
+    command: ['node', 'server.js']
+    environment:
+      HOSTNAME: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-moodtune}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+      REDIS_URL: redis://redis:6379
     ports:
-      - '3000:3000'
+      - '127.0.0.1:${PORT:-3333}:3000'
+      # - '${PORT:-3333}:3000' # for development
+    volumes:
+      - ./.next/standalone:/app:ro
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/bins:/data/bins:ro
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/uploads:/data/uploads
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/log:/data/log
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1536M
+        reservations:
+          memory: 512M
+    networks:
+      - moodtune
+      - default
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
   redis:
     image: redis:8-alpine
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
-      - ./data/redis:/data
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/redis:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio
     restart: unless-stopped
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '127.0.0.1:${MINIO_PORT:-9000}:9000'
+      - '127.0.0.1:9001:9001'   # MinIO Console
     volumes:
-      - ./data/minio:/data
+      - ${DATA_DIR:?DATA_DIR must be set in .env}/minio:/data
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  moodtune:
+    name: moodtune
+    external: true

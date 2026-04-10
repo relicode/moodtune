@@ -18,6 +18,7 @@ import { useConfirm } from 'material-ui-confirm'
 import { useState } from 'react'
 
 import { deleteVenueAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import type { Venue } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
 import BranchTree from './BranchTree'
@@ -38,6 +39,7 @@ const VenueCard = ({ venue }: VenueCardProps) => {
   const handleDelete = async () => {
     const { confirmed } = await confirm({ description: `Delete venue "${venue.name}"? This cannot be undone.` })
     if (!confirmed) return
+    track('admin-venue-delete', { venueId: venue.id })
     await deleteVenueAction(venue.id)
   }
 

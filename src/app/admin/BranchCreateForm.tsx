@@ -13,12 +13,13 @@ import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
-import { useActionState, useRef } from 'react'
+import { useActionState, useRef, useState } from 'react'
 
 import { createBranchAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import { BranchType } from '$/types'
 import type { ActionResult } from '$/types'
-import ImagePicker from './ImagePicker'
+import ImageUpload from './ImageUpload'
 
 type BranchCreateFormProps = {
   venueId: string
@@ -30,15 +31,22 @@ type BranchCreateFormProps = {
 
 const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: BranchCreateFormProps) => {
   const formRef = useRef<HTMLFormElement>(null)
+  const [imagePath, setImagePath] = useState<string | null>(null)
+  const [imageKey, setImageKey] = useState(0)
   const label = parentId ? 'New sub-branch' : 'New branch'
 
   const [, formAction, pending] = useActionState(
     async (prev: ActionResult, formData: FormData) => {
       formData.set('venueId', venueId)
       if (parentId) formData.set('parentId', parentId)
+      if (imagePath) formData.set('imagePath', imagePath)
+
       const result = await createBranchAction(prev, formData)
       if (result.success) {
+        track('admin-branch-create', { venueId, name: formData.get('name') as string })
         formRef.current?.reset()
+        setImagePath(null)
+        setImageKey((k) => k + 1)
         onClose()
         onCreated()
       }
@@ -47,13 +55,19 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
     { success: false }
   )
 
+  const handleClose = () => {
+    setImagePath(null)
+    setImageKey((k) => k + 1)
+    onClose()
+  }
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
       <Stack component="form" ref={formRef} action={formAction}>
         <DialogTitle>{label}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
               <TextField name="name" label="Name" size="small" required autoComplete="off" sx={{ flex: 5 }} />
               <FormControl size="small" sx={{ flex: 3 }}>
                 <InputLabel>Type</InputLabel>
@@ -68,12 +82,12 @@ const BranchCreateForm = ({ venueId, parentId, open, onClose, onCreated }: Branc
                   </MenuItem>
                 </Select>
               </FormControl>
+              <ImageUpload key={imageKey} onUpload={setImagePath} size={40} />
             </Stack>
-            <ImagePicker name="image" />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={handleClose}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={pending}>
             Add
           </Button>

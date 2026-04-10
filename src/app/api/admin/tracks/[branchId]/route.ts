@@ -15,5 +15,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ bran
   const pool = searchParams.get('pool')
 
   const tracks = pool === 'random' ? await getRandomTracks(branchId) : await getPlaylistTracks(branchId)
-  return NextResponse.json({ tracks })
+  return NextResponse.json({ tracks }, {
+    headers: { 'Cache-Control': 'no-store' }, // track lists can change anytime
+  })
 }

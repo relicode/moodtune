@@ -1,0 +1,50 @@
+# Reference copy of the moodtune vhost from ~/services/Caddyfile
+# The canonical version lives in ~/services/Caddyfile — this file is not used at runtime.
+
+moodtune.siren.codes {
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.mapifest.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://analytics.mapifest.com; worker-src 'self'; frame-ancestors 'none'"
+    Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    -Server
+  }
+
+  @blocked path /wp-admin* /wp-login* /wp-content* /xmlrpc.php /.env /.git* /phpmyadmin* /cgi-bin*
+  respond @blocked 403
+
+  @bad_agents header_regexp User-Agent "(?i)(sqlmap|nikto|nmap|masscan|zgrab|gobuster|dirbuster|wfuzz|nuclei)"
+  respond @bad_agents 403
+
+  log {
+    output file /var/log/caddy/moodtune-access.log {
+      roll_size 50MiB
+      roll_keep 10
+      roll_keep_for 90d
+    }
+    format json
+  }
+
+  # Allow large/slow uploads (audio files up to 2 GB)
+  @uploads path /api/admin/track /api/admin/image
+  request_body @uploads {
+    max_size 2GB
+  }
+  route @uploads {
+    reverse_proxy moodtune-app:3000 {
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      transport http {
+        read_timeout 600s
+        write_timeout 600s
+      }
+    }
+  }
+
+  reverse_proxy moodtune-app:3000 {
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+  }
+}

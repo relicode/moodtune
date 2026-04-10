@@ -2,7 +2,6 @@
 
 import ImageIcon from '@mui/icons-material/Image'
 import Avatar from '@mui/material/Avatar'
-import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -20,26 +19,30 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
 
-import { setBranchRandomAction, updateBranchImageAction, updatePlaylistSettingsAction } from '$/actions/admin'
+import { setBranchRandomAction, updateBranchImageAction, updateBranchSettingsAction } from '$/actions/admin'
 import { getImageUrl } from '$/actions/media'
-import { formatDuration, formatTime } from '$/lib/utils'
+import { useSnackbar } from '$/hooks/useSnackbar'
+import { track } from '$/lib/analytics'
+import { formatDuration } from '$/lib/utils'
 import { BranchType, PlaylistUiOption } from '$/types'
 import type { Branch } from '$/types'
 import TrackList from './TrackList'
-import TrackUploader from './TrackUploader'
 
 type SettingSwitchProps = {
   checked: boolean
   label: string
+  tooltip: string
   onChange: (checked: boolean) => void
 }
 
-const SettingSwitch = ({ checked, label, onChange }: SettingSwitchProps) => (
+const SettingSwitch = ({ checked, label, tooltip, onChange }: SettingSwitchProps) => (
   <Grid size={4}>
-    <FormControlLabel
-      control={<Switch size="small" checked={checked} onChange={(_e, v) => onChange(v)} sx={{ mr: 2 }} />}
-      label={label}
-    />
+    <Tooltip title={tooltip}>
+      <FormControlLabel
+        control={<Switch size="small" checked={checked} onChange={(_e, v) => onChange(v)} sx={{ mr: 2 }} />}
+        label={label}
+      />
+    </Tooltip>
   </Grid>
 )
 
@@ -50,44 +53,60 @@ type DialogEditPlaylistProps = {
 }
 
 const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) => {
-  const [trackRefreshKey, setTrackRefreshKey] = useState(0)
-  const [randomRefreshKey, setRandomRefreshKey] = useState(0)
   const [playlistName, setPlaylistName] = useState(branch.name)
   const [nameSaving, setNameSaving] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [localPreview, setLocalPreview] = useState<string | null>(null)
+  const imageUrl = localPreview ?? (branch.imagePath ? getImageUrl(branch.imagePath) : null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const { showSnackbar } = useSnackbar()
   const [random, setRandom] = useState(branch.random ?? 0)
   const [ui, setUi] = useState<PlaylistUiOption[]>(branch.ui ?? [])
   const [mainDuration, setMainDuration] = useState(0)
   const [randomDuration, setRandomDuration] = useState(0)
 
+  useEffect(
+    () => () => {
+      if (localPreview) URL.revokeObjectURL(localPreview)
+    },
+    [localPreview]
+  )
+
   const toggleUiOption = (option: PlaylistUiOption, checked: boolean) => {
     const next = checked ? [...ui, option] : ui.filter((o) => o !== option)
     setUi(next)
-    updatePlaylistSettingsAction(branch.id, { ui: next })
+    updateBranchSettingsAction(branch.id, { ui: next })
   }
-
-  useEffect(() => {
-    if (!open || !branch.imagePath) return
-    let cancelled = false
-    const load = async () => {
-      const url = await getImageUrl(branch.imagePath!)
-      if (!cancelled) setImageUrl(url)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [open, branch.imagePath])
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setImageUrl(URL.createObjectURL(file))
+    if (localPreview) URL.revokeObjectURL(localPreview)
+    const previewUrl = URL.createObjectURL(file)
+    setLocalPreview(previewUrl)
+    e.target.value = ''
+
     const formData = new FormData()
     formData.set('image', file)
-    await updateBranchImageAction(branch.id, formData)
-    e.target.value = ''
+    try {
+      const res = await fetch('/api/admin/image', { method: 'POST', body: formData })
+      if (!res.ok) {
+        URL.revokeObjectURL(previewUrl)
+        setLocalPreview(null)
+        showSnackbar('Failed to upload image', 'error')
+        return
+      }
+      const { imagePath } = (await res.json()) as { imagePath: string }
+      const result = await updateBranchImageAction(branch.id, imagePath)
+      if (!result.success) {
+        URL.revokeObjectURL(previewUrl)
+        setLocalPreview(null)
+        showSnackbar(result.error ?? 'Failed to update image', 'error')
+      }
+    } catch {
+      URL.revokeObjectURL(previewUrl)
+      setLocalPreview(null)
+      showSnackbar('Failed to upload image', 'error')
+    }
   }
 
   return (
@@ -102,8 +121,20 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
                 const trimmed = playlistName.trim()
                 if (trimmed && trimmed !== branch.name) {
                   setNameSaving(true)
-                  await updatePlaylistSettingsAction(branch.id, { name: trimmed })
-                  setNameSaving(false)
+                  try {
+                    const result = await updateBranchSettingsAction(branch.id, { name: trimmed })
+                    if (result.success) {
+                      track('admin-playlist-update', { branchId: branch.id, name: trimmed })
+                    } else {
+                      setPlaylistName(branch.name)
+                      showSnackbar(result.error ?? 'Failed to rename playlist', 'error')
+                    }
+                  } catch {
+                    setPlaylistName(branch.name)
+                    showSnackbar('Failed to rename playlist', 'error')
+                  } finally {
+                    setNameSaving(false)
+                  }
                 } else {
                   setPlaylistName(branch.name)
                 }
@@ -112,13 +143,16 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               autoComplete="off"
               slotProps={{
                 input: {
-                  sx: { fontSize: 'inherit', fontWeight: 'inherit', textAlign: 'center' },
+                  sx: { fontSize: 'inherit', fontWeight: 'inherit' },
+                },
+                htmlInput: {
+                  sx: { textAlign: 'center' },
                 },
               }}
             />
             <Typography variant="body2" color="text.secondary" textAlign="center">
               {random && random < 100 ? '~' : null}
-              {formatDuration(mainDuration + randomDuration * (random / 100))}
+              {formatDuration(mainDuration + randomDuration * (random / 100), 'long')}
             </Typography>
           </Stack>
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />
@@ -134,38 +168,19 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
           <SettingSwitch
             checked={ui.includes(PlaylistUiOption.SHUFFLE)}
             label="Shuffle"
+            tooltip="Randomize track order on each playback"
             onChange={(checked) => toggleUiOption(PlaylistUiOption.SHUFFLE, checked)}
           />
 
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)}
-            label="Show track names"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_TRACK_NAMES, checked)}
-          />
-
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)}
-            label="Show shuffle control"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE, checked)}
-          />
-
-          <SettingSwitch
-            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)}
-            label="Show random control"
-            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_RANDOM, checked)}
-          />
-
-          <Grid size={7}>
-            <Stack direction="row" alignItems="center">
-              <Typography color="text.secondary" textAlign="center">
+          <Grid size={8}>
+            <Stack direction="row" alignItems="center" gap={2}>
+              <Typography color="text.secondary" textAlign="center" sx={{ whiteSpace: 'nowrap' }}>
                 Random: {random}%
               </Typography>
               <Slider
                 value={random}
                 min={0}
                 max={100}
-                valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
                 onChange={(_e, v) => setRandom(v as number)}
                 onChangeCommitted={async (_e, v) => {
                   const result = await setBranchRandomAction(branch.id, v as number)
@@ -174,6 +189,27 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
               />
             </Stack>
           </Grid>
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_RANDOM)}
+            label="Show random control"
+            tooltip="Show random percentage slider in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_RANDOM, checked)}
+          />
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_TRACK_NAMES)}
+            label="Show track names"
+            tooltip="Display track names in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_TRACK_NAMES, checked)}
+          />
+
+          <SettingSwitch
+            checked={ui.includes(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE)}
+            label="Show shuffle control"
+            tooltip="Show shuffle toggle in the venue player"
+            onChange={(checked) => toggleUiOption(PlaylistUiOption.SHOW_CONTROLS_SHUFFLE, checked)}
+          />
         </Grid>
 
         <Divider sx={{ my: 2 }} />
@@ -184,43 +220,8 @@ const DialogEditPlaylist = ({ branch, open, onClose }: DialogEditPlaylistProps) 
           spacing={2}
           sx={{ minHeight: 0, flex: 1 }}
         >
-          <Stack sx={{ flex: 1, minWidth: 0 }}>
-            <Stack
-              direction="row"
-              justifyContent="center"
-              alignItems="center"
-              spacing={1}
-              sx={{ mb: 2, flexShrink: 0 }}
-            >
-              <Typography variant="subtitle2">Tracks{mainDuration > 0 && ` (${formatTime(mainDuration)})`}</Typography>
-              <TrackUploader branchId={branch.id} onUploaded={() => setTrackRefreshKey((k) => k + 1)} />
-            </Stack>
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-              <TrackList branchId={branch.id} refreshKey={trackRefreshKey} onDurationChange={setMainDuration} />
-            </Box>
-          </Stack>
-          <Stack sx={{ flex: 1, minWidth: 0 }}>
-            <Stack
-              direction="row"
-              justifyContent="center"
-              alignItems="center"
-              spacing={1}
-              sx={{ mb: 2, flexShrink: 0 }}
-            >
-              <Typography variant="subtitle2">
-                Random Tracks{randomDuration > 0 && ` (${formatTime(randomDuration)})`}
-              </Typography>
-              <TrackUploader branchId={branch.id} pool="random" onUploaded={() => setRandomRefreshKey((k) => k + 1)} />
-            </Stack>
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-              <TrackList
-                branchId={branch.id}
-                refreshKey={randomRefreshKey}
-                pool="random"
-                onDurationChange={setRandomDuration}
-              />
-            </Box>
-          </Stack>
+          <TrackList branchId={branch.id} onDurationChange={setMainDuration} />
+          <TrackList branchId={branch.id} pool="random" onDurationChange={setRandomDuration} />
         </Stack>
       </DialogContent>
       <DialogActions>

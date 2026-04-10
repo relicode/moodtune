@@ -3,10 +3,13 @@
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { useActionState } from 'react'
+import { useActionState, useEffect, useRef } from 'react'
 
+import InstallButton from '$/components/InstallButton'
+import { track } from '$/lib/analytics'
 import type { ActionResult } from '$/types'
 
 type LoginFormProps = {
@@ -16,6 +19,14 @@ type LoginFormProps = {
 
 const LoginForm = ({ title, action }: LoginFormProps) => {
   const [state, formAction, pending] = useActionState(action, { success: false })
+  const prevErrorRef = useRef(state.error)
+
+  useEffect(() => {
+    if (state.error && state.error !== prevErrorRef.current) {
+      track('auth-login-failure', { error: state.error })
+    }
+    prevErrorRef.current = state.error
+  }, [state.error])
 
   return (
     <Box
@@ -31,9 +42,10 @@ const LoginForm = ({ title, action }: LoginFormProps) => {
         gap: 2,
       }}
     >
-      <Typography variant="h4" textAlign="center">
-        {title}
-      </Typography>
+      <Stack direction="row" gap={2} alignItems="center" justifyContent="center">
+        <Typography variant="h4">{title}</Typography>
+        <InstallButton />
+      </Stack>
 
       {state.error && <Alert severity="error">{state.error}</Alert>}
 

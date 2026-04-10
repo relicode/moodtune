@@ -2,6 +2,7 @@
 
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
@@ -20,9 +21,11 @@ import { useConfirm } from 'material-ui-confirm'
 import { createContext, useContext, useEffect, useState } from 'react'
 
 import { deleteBranchAction } from '$/actions/admin'
+import { track } from '$/lib/analytics'
 import { BranchType } from '$/types'
 import type { Branch } from '$/types'
 import BranchCreateForm from './BranchCreateForm'
+import DialogEditBranch from './DialogEditBranch'
 import DialogEditPlaylist from './DialogEditPlaylist'
 
 type BranchTreeContext = {
@@ -54,6 +57,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
   const { openBranches, toggleBranch, refresh } = useContext(BranchTreeContext)
   const open = openBranches.includes(branch.id)
   const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [tracksOpen, setTracksOpen] = useState(false)
   const confirm = useConfirm()
   const canAdd = branch.type === BranchType.FOLDER
@@ -62,6 +66,7 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
     e.stopPropagation()
     const { confirmed } = await confirm({ description: `Delete branch "${branch.name}"?` })
     if (!confirmed) return
+    track('admin-branch-delete', { branchId: branch.id })
     await deleteBranchAction(venueId, branch.id, branch.parentId)
     onChanged()
   }
@@ -74,7 +79,15 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
           sx={{ flexGrow: 1 }}
         >
           <ListItemIcon>
-            {branch.type === BranchType.FOLDER ? open ? <FolderOpenIcon /> : <FolderIcon /> : <QueueMusicIcon />}
+            {branch.type === BranchType.FOLDER ? (
+              open ? (
+                <FolderOpenIcon color="primary" />
+              ) : (
+                <FolderIcon color="primary" />
+              )
+            ) : (
+              <QueueMusicIcon color="primary" />
+            )}
           </ListItemIcon>
           <ListItemText primary={branch.name} />
         </ListItemButton>
@@ -82,6 +95,13 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
           <Tooltip title="Add sub-branch">
             <IconButton size="small" color="success" onClick={() => setAddOpen(true)}>
               <AddIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        {canAdd && (
+          <Tooltip title="Edit branch">
+            <IconButton size="small" color="info" onClick={() => setEditOpen(true)}>
+              <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}
@@ -98,16 +118,19 @@ const BranchItem = ({ venueId, branch, onChanged }: BranchItemProps) => {
       </Stack>
 
       {canAdd && (
-        <BranchCreateForm
-          venueId={venueId}
-          parentId={branch.id}
-          open={addOpen}
-          onClose={() => setAddOpen(false)}
-          onCreated={() => {
-            onChanged()
-            refresh()
-          }}
-        />
+        <>
+          <DialogEditBranch branch={branch} open={editOpen} onClose={() => setEditOpen(false)} />
+          <BranchCreateForm
+            venueId={venueId}
+            parentId={branch.id}
+            open={addOpen}
+            onClose={() => setAddOpen(false)}
+            onCreated={() => {
+              onChanged()
+              refresh()
+            }}
+          />
+        </>
       )}
 
       {branch.type === BranchType.FOLDER && (

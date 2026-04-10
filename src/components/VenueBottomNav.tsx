@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 
 import { logout } from '$/actions/auth'
 import { getParentBranchInfo } from '$/actions/branches'
+import { track } from '$/lib/analytics'
 import { UserRole } from '$/types'
 import type { PlaylistSummary } from '$/types'
 
@@ -82,6 +83,7 @@ const VenueBottomNav = ({ playlists, role }: VenueBottomNavProps) => {
             )
           }
           onClick={async () => {
+            track('auth-logout')
             await logout()
           }}
         />

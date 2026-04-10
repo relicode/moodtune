@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField'
 import { useActionState } from 'react'
 
 import { updateTrackAction } from '$/actions/admin'
+import { track as trackEvent } from '$/lib/analytics'
 import type { ActionResult, Track } from '$/types'
 
 type TrackEditFormProps = {
@@ -25,6 +26,7 @@ const TrackEditForm = ({ track, open, onClose, onUpdated }: TrackEditFormProps) 
       formData.set('trackId', track.id)
       const result = await updateTrackAction(prev, formData)
       if (result.success) {
+        trackEvent('admin-track-update', { trackId: track.id })
         onClose()
         onUpdated()
       }
