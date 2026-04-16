@@ -5,7 +5,7 @@
 
 set -e
 
-FFMPEG_MAJOR="8.0"
+FFMPEG_MAJOR="8.1"
 BASE_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
 
 # Read DATA_DIR from .env if available (without sourcing the entire file for safety)
